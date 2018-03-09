@@ -949,10 +949,10 @@ class Safecoin(SafecoinMixin, EquihashMixin, Coin):
     NAME = "Safecoin"
     SHORTNAME = "SAFE"
     NET = "mainnet"
-    TX_COUNT = 693629
-    TX_COUNT_HEIGHT = 491777
+    TX_COUNT = 10000
+    TX_COUNT_HEIGHT = 5000
     TX_PER_BLOCK = 2
-    RPC_PORT = 7771
+    RPC_PORT = 8771
     REORG_LIMIT = 800
     PEERS = []
 
