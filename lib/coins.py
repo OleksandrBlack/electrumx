@@ -363,8 +363,8 @@ class SafecoinMixin(object):
     P2PKH_VERBYTE = bytes.fromhex("3C")
     P2SH_VERBYTES = [bytes.fromhex("55")]
     WIF_BYTE = bytes.fromhex("BC")
-    GENESIS_HASH = ('027e3758c3a65b12aa1046462b486d0a'
-                    '63bfa1beae327897f56c5cfb7daaae71')
+    GENESIS_HASH = ('09f5deffb9c816d82b8f696befa84681'
+                    '509274288c4529f213aeeac57999e8c9')
     DESERIALIZER = lib_tx.DeserializerZcash
 
 
