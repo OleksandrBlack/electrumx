@@ -331,7 +331,7 @@ class TestVectors():
         # Chain m/0H/1/2H/2/1000000000
         m5 = m4.child(1000000000)
         xprv = m5.extended_key_string(Bitcoin)
-        assert xprv == "xprvA41z7zogVVwxVSgdKUHDy1SSafeb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76"
+        assert xprv == "xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76"
         xpub = m5.public_key.extended_key_string(Bitcoin)
         assert xpub == "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
 
