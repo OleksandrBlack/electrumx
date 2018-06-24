@@ -71,8 +71,7 @@ class TxOutput(namedtuple("TxOutput", "value pk_script")):
 class Deserializer(object):
     '''Deserializes blocks into transactions.
 
-    External entry points are read_tx(), read_tx_and_hash(),
-    read_tx_and_vsize() and read_block().
+    External entry points are read_tx() and read_block().
 
     This code is performance sensitive as it is executed 100s of
     millions of times during sync.
@@ -85,32 +84,25 @@ class Deserializer(object):
         self.cursor = start
 
     def read_tx(self):
-        '''Return a deserialized transaction.'''
-        return Tx(
-            self._read_le_int32(),  # version
-            self._read_inputs(),    # inputs
-            self._read_outputs(),   # outputs
-            self._read_le_uint32()  # locktime
-        )
-
-    def read_tx_and_hash(self):
-        '''Return a (deserialized TX, tx_hash) pair.
+        '''Return a (Deserialized TX, TX_HASH) pair.
 
         The hash needs to be reversed for human display; for efficiency
         we process it in the natural serialized order.
         '''
         start = self.cursor
-        return self.read_tx(), double_sha256(self.binary[start:self.cursor])
-
-    def read_tx_and_vsize(self):
-        '''Return a (deserialized TX, vsize) pair.'''
-        return self.read_tx(), self.binary_length
+        return Tx(
+            self._read_le_int32(),  # version
+            self._read_inputs(),    # inputs
+            self._read_outputs(),   # outputs
+            self._read_le_uint32()  # locktime
+        ), double_sha256(self.binary[start:self.cursor])
 
     def read_tx_block(self):
         '''Returns a list of (deserialized_tx, tx_hash) pairs.'''
-        read = self.read_tx_and_hash
+        read_tx = self.read_tx
+        txs = [read_tx() for _ in range(self._read_varint())]
         # Some coins have excess data beyond the end of the transactions
-        return [read() for _ in range(self._read_varint())]
+        return txs
 
     def _read_inputs(self):
         read_input = self._read_input
@@ -206,16 +198,18 @@ class DeserializerSegWit(Deserializer):
         read_varbytes = self._read_varbytes
         return [read_varbytes() for i in range(self._read_varint())]
 
-    def _read_tx_parts(self):
-        '''Return a (deserialized TX, tx_hash, vsize) tuple.'''
-        start = self.cursor
+    def read_tx(self):
+        '''Return a (Deserialized TX, TX_HASH) pair.
+
+        The hash needs to be reversed for human display; for efficiency
+        we process it in the natural serialized order.
+        '''
         marker = self.binary[self.cursor + 4]
         if marker:
-            tx = super().read_tx()
-            tx_hash = double_sha256(self.binary[start:self.cursor])
-            return tx, tx_hash, self.binary_length
+            return super().read_tx()
 
         # Ugh, this is nasty.
+        start = self.cursor
         version = self._read_le_int32()
         orig_ser = self.binary[start:self.cursor]
 
@@ -227,27 +221,14 @@ class DeserializerSegWit(Deserializer):
         outputs = self._read_outputs()
         orig_ser += self.binary[start:self.cursor]
 
-        base_size = self.cursor - start
         witness = self._read_witness(len(inputs))
 
         start = self.cursor
         locktime = self._read_le_uint32()
         orig_ser += self.binary[start:self.cursor]
-        vsize = (3 * base_size + self.binary_length) // 4
 
-        return TxSegWit(version, marker, flag, inputs, outputs, witness,
-                        locktime), double_sha256(orig_ser), vsize
-
-    def read_tx(self):
-        return self._read_tx_parts()[0]
-
-    def read_tx_and_hash(self):
-        tx, tx_hash, vsize = self._read_tx_parts()
-        return tx, tx_hash
-
-    def read_tx_and_vsize(self):
-        tx, tx_hash, vsize = self._read_tx_parts()
-        return tx, vsize
+        return TxSegWit(version, marker, flag, inputs,
+                        outputs, witness, locktime), double_sha256(orig_ser)
 
 
 class DeserializerAuxPow(Deserializer):
@@ -308,6 +289,7 @@ class TxJoinSplit(namedtuple("Tx", "version inputs outputs locktime")):
 
 class DeserializerZcash(DeserializerEquihash):
     def read_tx(self):
+        start = self.cursor
         base_tx =  TxJoinSplit(
             self._read_le_int32(),  # version
             self._read_inputs(),    # inputs
@@ -320,7 +302,7 @@ class DeserializerZcash(DeserializerEquihash):
                 self.cursor += joinsplit_size * 1802 # JSDescription
                 self.cursor += 32 # joinSplitPubKey
                 self.cursor += 64 # joinSplitSig
-        return base_tx
+        return base_tx, double_sha256(self.binary[start:self.cursor])
 
 
 class TxTime(namedtuple("Tx", "version time inputs outputs locktime")):
@@ -333,17 +315,21 @@ class TxTime(namedtuple("Tx", "version time inputs outputs locktime")):
 
 class DeserializerTxTime(Deserializer):
     def read_tx(self):
+        start = self.cursor
+
         return TxTime(
             self._read_le_int32(),  # version
             self._read_le_uint32(), # time
             self._read_inputs(),    # inputs
             self._read_outputs(),   # outputs
             self._read_le_uint32(), # locktime
-        )
+        ), double_sha256(self.binary[start:self.cursor])
 
 
 class DeserializerReddcoin(Deserializer):
     def read_tx(self):
+        start = self.cursor
+
         version = self._read_le_int32()
         inputs = self._read_inputs()
         outputs = self._read_outputs()
@@ -353,7 +339,13 @@ class DeserializerReddcoin(Deserializer):
         else:
             time = 0
 
-        return TxTime(version, time, inputs, outputs, locktime)
+        return TxTime(
+            version,
+            time,
+            inputs,
+            outputs,
+            locktime,
+        ), double_sha256(self.binary[start:self.cursor])
 
 
 class DeserializerTxTimeAuxPow(DeserializerTxTime):
