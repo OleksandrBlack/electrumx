@@ -71,7 +71,7 @@ Version 1.2.1
   don't have peers populated.
 - use estimatesmartfee RPC call if available (SomberNight)
 - new/updated coins: Emercoin (Sergii Vakula), Bitcoin Gold (erasmospunk),
-  Monacoin testnet (Wakiyama P), sibcoin (53r63rn4r), Komodo and Monaize
+  Monacoin testnet (Wakiyama P), sibcoin (53r63rn4r), Safecoin and Monaize
   (cipig), Hush (Duke Leto)
 - doc updates (fr3aker)
 - issues fixed: `#302`_

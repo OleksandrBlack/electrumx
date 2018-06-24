@@ -361,16 +361,6 @@ class ScryptMixin(object):
         else:
             return cls.HEADER_HASH(header)
 			
-
-class SafecoinMixin(object):
-    P2PKH_VERBYTE = bytes.fromhex("3D")
-    P2SH_VERBYTES = [bytes.fromhex("56")]
-    WIF_BYTE = bytes.fromhex("BD")
-    GENESIS_HASH = ('09f5deffb9c816d82b8f696befa84681'
-                    '509274288c4529f213aeeac57999e8c9')
-    DESERIALIZER = lib_tx.DeserializerZcash
-
-
 class KomodoMixin(object):
     P2PKH_VERBYTE = bytes.fromhex("3C")
     P2SH_VERBYTES = [bytes.fromhex("55")]
@@ -1010,6 +1000,22 @@ class BitcoinZ(EquihashMixin, Coin):
     RPC_PORT = 1979
     REORG_LIMIT = 800
 
+class Safecoin(EquihashMixin, Coin):
+    NAME = "Safecoin"
+    SHORTNAME = "SAFE"
+    NET = "mainnet"
+    P2PKH_VERBYTE = bytes.fromhex("3D")
+    P2SH_VERBYTES = [bytes.fromhex("56")]
+    WIF_BYTE = bytes.fromhex("BD")
+    GENESIS_HASH = ('09f5deffb9c816d82b8f696befa84681'
+                    '509274288c4529f213aeeac57999e8c9')
+    DESERIALIZER = lib_tx.DeserializerZcash
+    TX_COUNT = 17755
+    TX_COUNT_HEIGHT = 178594
+    TX_PER_BLOCK = 2
+    RPC_PORT = 8771
+    REORG_LIMIT = 800
+
 
 class Hush(EquihashMixin, Coin):
     NAME = "Hush"
@@ -1082,29 +1088,6 @@ class KotoTestnet(Koto):
     PEERS = [
         'testnet.kotocoin.info s t',
     ]
-
-class Safecoin(SafecoinMixin, EquihashMixin, Coin):
-    NAME = "Safecoin"
-    SHORTNAME = "SAFE"
-    NET = "mainnet"
-    TX_COUNT = 17755
-    TX_COUNT_HEIGHT = 178594
-    TX_PER_BLOCK = 2
-    RPC_PORT = 8771
-    REORG_LIMIT = 800
-    PEERS = []
-
-#TODO RPC_PORT = 21341
-class FairExchange(SafecoinMixin, EquihashMixin, Coin):
-    NAME = "FairExchange"
-    SHORTNAME = "FAIREXCHANGE"
-    NET = "mainnet"
-    TX_COUNT = 10000
-    TX_COUNT_HEIGHT = 5000
-    TX_PER_BLOCK = 2
-    RPC_PORT = 21341
-    REORG_LIMIT = 800
-    PEERS = []
 	
 class Komodo(KomodoMixin, EquihashMixin, Coin):
     NAME = "Komodo"
