@@ -35,7 +35,6 @@ _sha256 = hashlib.sha256
 _sha512 = hashlib.sha512
 _new_hash = hashlib.new
 _new_hmac = hmac.new
-HASHX_LEN = 11
 
 
 def sha256(x):
@@ -74,9 +73,8 @@ def hash_to_hex_str(x):
     '''
     return bytes(reversed(x)).hex()
 
-
-hash_to_str = hash_to_hex_str   # Temporary
-
+# Temporary
+hash_to_str = hash_to_hex_str
 
 def hex_str_to_hash(x):
     '''Convert a displayed hex string to a binary hash.'''
@@ -145,18 +143,18 @@ class Base58(object):
         return txt[::-1]
 
     @staticmethod
-    def decode_check(txt, *, hash_fn=double_sha256):
+    def decode_check(txt):
         '''Decodes a Base58Check-encoded string to a payload.  The version
         prefixes it.'''
         be_bytes = Base58.decode(txt)
         result, check = be_bytes[:-4], be_bytes[-4:]
-        if check != hash_fn(result)[:4]:
+        if check != double_sha256(result)[:4]:
             raise Base58Error('invalid base 58 checksum for {}'.format(txt))
         return result
 
     @staticmethod
-    def encode_check(payload, *, hash_fn=double_sha256):
+    def encode_check(payload):
         """Encodes a payload bytearray (which includes the version byte(s))
         into a Base58Check string."""
-        be_bytes = payload + hash_fn(payload)[:4]
+        be_bytes = payload + double_sha256(payload)[:4]
         return Base58.encode(be_bytes)

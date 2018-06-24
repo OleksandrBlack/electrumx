@@ -1,5 +1,3 @@
 #!/bin/sh
 echo "Launching ElectrumX server..."
-USERNAME=$(envdir ./env printenv USERNAME)
-ELECTRUMX=$(envdir ./env printenv ELECTRUMX)
-ulimit -n 4000 && exec 2>&1 envdir ./env envuidgid $USERNAME python3 $ELECTRUMX
+exec 2>&1 envdir ./env /bin/sh -c 'setuidgid $USERNAME python3 $ELECTRUMX'

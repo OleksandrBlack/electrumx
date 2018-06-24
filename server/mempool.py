@@ -9,16 +9,15 @@
 
 import asyncio
 import itertools
-import logging
 import time
 from collections import defaultdict
 
 from lib.hash import hash_to_str, hex_str_to_hash
+import lib.util as util
 from server.daemon import DaemonError
-from server.db import UTXO
 
 
-class MemPool(object):
+class MemPool(util.LoggedClass):
     '''Representation of the daemon's mempool.
 
     Updated regularly in caught-up state.  Goal is to enable efficient
@@ -26,28 +25,31 @@ class MemPool(object):
 
     To that end we maintain the following maps:
 
-       tx_hash -> (txin_pairs, txout_pairs, tx_fee, tx_size)
+       tx_hash -> (txin_pairs, txout_pairs)
        hashX   -> set of all tx hashes in which the hashX appears
 
     A pair is a (hashX, value) tuple.  tx hashes are hex strings.
     '''
 
     def __init__(self, bp, controller):
-        self.logger = logging.getLogger(self.__class__.__name__)
+        super().__init__()
         self.daemon = bp.daemon
         self.controller = controller
         self.coin = bp.coin
         self.db = bp
-        self.touched = set()
+        self.touched = bp.touched
+        self.touched_event = asyncio.Event()
+        self.prioritized = set()
         self.stop = False
         self.txs = {}
         self.hashXs = defaultdict(set)  # None can be a key
-        self.synchronized_event = asyncio.Event()
-        self.fee_histogram = defaultdict(int)
-        self.compact_fee_histogram = []
-        self.histogram_time = 0
 
-    def _resync_daemon_hashes(self, unprocessed, unfetched):
+    def prioritize(self, tx_hash):
+        '''Prioritize processing the given hash.  This is important during
+        initial mempool sync.'''
+        self.prioritized.add(tx_hash)
+
+    def resync_daemon_hashes(self, unprocessed, unfetched):
         '''Re-sync self.txs with the list of hashes in the daemon's mempool.
 
         Additionally, remove gone hashes from unprocessed and
@@ -56,7 +58,6 @@ class MemPool(object):
         txs = self.txs
         hashXs = self.hashXs
         touched = self.touched
-        fee_hist = self.fee_histogram
 
         hashes = self.daemon.cached_mempool_hashes()
         gone = set(txs).difference(hashes)
@@ -65,11 +66,7 @@ class MemPool(object):
             unprocessed.pop(hex_hash, None)
             item = txs.pop(hex_hash)
             if item:
-                txin_pairs, txout_pairs, tx_fee, tx_size = item
-                fee_rate = tx_fee // tx_size
-                fee_hist[fee_rate] -= tx_size
-                if fee_hist[fee_rate] == 0:
-                    fee_hist.pop(fee_rate)
+                txin_pairs, txout_pairs = item
                 tx_hashXs = set(hashX for hashX, value in txin_pairs)
                 tx_hashXs.update(hashX for hashX, value in txout_pairs)
                 for hashX in tx_hashXs:
@@ -93,19 +90,18 @@ class MemPool(object):
         unfetched = set()
         txs = self.txs
         fetch_size = 800
-        process_some = self._async_process_some(fetch_size // 2)
+        process_some = self.async_process_some(unfetched, fetch_size // 2)
 
+        await self.daemon.mempool_refresh_event.wait()
         self.logger.info('beginning processing of daemon mempool.  '
                          'This can take some time...')
-        await self.daemon.mempool_refresh_event.wait()
         next_log = 0
         loops = -1  # Zero during initial catchup
 
         while True:
             # Avoid double notifications if processing a block
             if self.touched and not self.processing_new_block():
-                self.controller.notify_sessions(self.touched)
-                self.touched.clear()
+                self.touched_event.set()
 
             # Log progress / state
             todo = len(unfetched) + len(unprocessed)
@@ -115,8 +111,6 @@ class MemPool(object):
                                  '({:,d} txs left)'.format(pct, todo))
             if not todo:
                 loops += 1
-                if loops > 0:
-                    self.synchronized_event.set()
                 now = time.time()
                 if now >= next_log and loops:
                     self.logger.info('{:,d} txs touching {:,d} addresses'
@@ -125,9 +119,10 @@ class MemPool(object):
 
             try:
                 if not todo:
+                    self.prioritized.clear()
                     await self.daemon.mempool_refresh_event.wait()
 
-                self._resync_daemon_hashes(unprocessed, unfetched)
+                self.resync_daemon_hashes(unprocessed, unfetched)
                 self.daemon.mempool_refresh_event.clear()
 
                 if unfetched:
@@ -144,15 +139,18 @@ class MemPool(object):
                 self.stop = True
                 break
 
-    def _async_process_some(self, limit):
+    def async_process_some(self, unfetched, limit):
         pending = []
         txs = self.txs
-        fee_hist = self.fee_histogram
 
         async def process(unprocessed):
             nonlocal pending
 
             raw_txs = {}
+
+            for hex_hash in self.prioritized:
+                if hex_hash in unprocessed:
+                    raw_txs[hex_hash] = unprocessed.pop(hex_hash)
 
             while unprocessed and len(raw_txs) < limit:
                 hex_hash, raw_tx = unprocessed.popitem()
@@ -170,29 +168,14 @@ class MemPool(object):
             pending.extend(deferred)
             hashXs = self.hashXs
             touched = self.touched
-            for hex_hash, item in result.items():
+            for hex_hash, in_out_pairs in result.items():
                 if hex_hash in txs:
-                    txs[hex_hash] = item
-                    txin_pairs, txout_pairs, tx_fee, tx_size = item
-                    fee_rate = tx_fee // tx_size
-                    fee_hist[fee_rate] += tx_size
-                    for hashX, value in itertools.chain(txin_pairs,
-                                                        txout_pairs):
+                    txs[hex_hash] = in_out_pairs
+                    for hashX, value in itertools.chain(*in_out_pairs):
                         touched.add(hashX)
                         hashXs[hashX].add(hex_hash)
 
         return process
-
-    def on_new_block(self, touched):
-        '''Called after processing one or more new blocks.
-
-        Touched is a set of hashXs touched by the transactions in the
-        block.  Caller must be aware it is modified by this function.
-        '''
-        # Minor race condition here with mempool processor thread
-        touched.update(self.touched)
-        self.touched.clear()
-        self.controller.notify_sessions(touched)
 
     def processing_new_block(self):
         '''Return True if we're processing a new block.'''
@@ -219,11 +202,11 @@ class MemPool(object):
         db_utxo_lookup = self.db.db_utxo_lookup
         txs = self.txs
 
-        # Deserialize each tx and put it in a pending list
+        # Deserialize each tx and put it in our priority queue
         for tx_hash, raw_tx in raw_tx_map.items():
             if tx_hash not in txs:
                 continue
-            tx, tx_size = deserializer(raw_tx).read_tx_and_vsize()
+            tx, _tx_hash = deserializer(raw_tx).read_tx()
 
             # Convert the tx outputs into (hashX, value) pairs
             txout_pairs = [(script_hashX(txout.pk_script), txout.value)
@@ -233,7 +216,7 @@ class MemPool(object):
             txin_pairs = [(hash_to_str(txin.prev_hash), txin.prev_idx)
                           for txin in tx.inputs]
 
-            pending.append((tx_hash, txin_pairs, txout_pairs, tx_size))
+            pending.append((tx_hash, txin_pairs, txout_pairs))
 
         # Now process what we can
         result = {}
@@ -243,7 +226,7 @@ class MemPool(object):
             if self.stop:
                 break
 
-            tx_hash, old_txin_pairs, txout_pairs, tx_size = item
+            tx_hash, old_txin_pairs, txout_pairs = item
             if tx_hash not in txs:
                 continue
 
@@ -273,10 +256,7 @@ class MemPool(object):
             if mempool_missing:
                 deferred.append(item)
             else:
-                # Compute fee
-                tx_fee = (sum(v for hashX, v in txin_pairs) -
-                          sum(v for hashX, v in txout_pairs))
-                result[tx_hash] = (txin_pairs, txout_pairs, tx_fee, tx_size)
+                result[tx_hash] = (txin_pairs, txout_pairs)
 
         return result, deferred
 
@@ -307,35 +287,16 @@ class MemPool(object):
             item = self.txs.get(hex_hash)
             if not item or not raw_tx:
                 continue
-            tx_fee = item[2]
-            tx = deserializer(raw_tx).read_tx()
+            txin_pairs, txout_pairs = item
+            tx_fee = (sum(v for hashX, v in txin_pairs) -
+                      sum(v for hashX, v in txout_pairs))
+            tx, tx_hash = deserializer(raw_tx).read_tx()
             unconfirmed = any(hash_to_str(txin.prev_hash) in self.txs
                               for txin in tx.inputs)
             result.append((hex_hash, tx_fee, unconfirmed))
         return result
 
-    def get_utxos(self, hashX):
-        '''Return an unordered list of UTXO named tuples from mempool
-        transactions that pay to hashX.
-
-        This does not consider if any other mempool transactions spend
-        the outputs.
-        '''
-        utxos = []
-        # hashXs is a defaultdict, so use get() to query
-        for hex_hash in self.hashXs.get(hashX, []):
-            item = self.txs.get(hex_hash)
-            if not item:
-                continue
-            txout_pairs = item[1]
-            for pos, (hX, value) in enumerate(txout_pairs):
-                if hX == hashX:
-                    # Unfortunately UTXO holds a binary hash
-                    utxos.append(UTXO(-1, pos, hex_str_to_hash(hex_hash),
-                                      0, value))
-        return utxos
-
-    async def potential_spends(self, hashX):
+    async def spends(self, hashX):
         '''Return a set of (prev_hash, prev_idx) pairs from mempool
         transactions that touch hashX.
 
@@ -343,14 +304,14 @@ class MemPool(object):
         '''
         deserializer = self.coin.DESERIALIZER
         pairs = await self.raw_transactions(hashX)
-        result = set()
+        spends = set()
         for hex_hash, raw_tx in pairs:
             if not raw_tx:
                 continue
-            tx = deserializer(raw_tx).read_tx()
+            tx, tx_hash = deserializer(raw_tx).read_tx()
             for txin in tx.inputs:
-                result.add((txin.prev_hash, txin.prev_idx))
-        return result
+                spends.add((txin.prev_hash, txin.prev_idx))
+        return spends
 
     def value(self, hashX):
         '''Return the unconfirmed amount in the mempool for hashX.
@@ -361,36 +322,7 @@ class MemPool(object):
         # hashXs is a defaultdict
         if hashX in self.hashXs:
             for hex_hash in self.hashXs[hashX]:
-                txin_pairs, txout_pairs, tx_fee, tx_size = self.txs[hex_hash]
+                txin_pairs, txout_pairs = self.txs[hex_hash]
                 value -= sum(v for h168, v in txin_pairs if h168 == hashX)
                 value += sum(v for h168, v in txout_pairs if h168 == hashX)
         return value
-
-    def get_fee_histogram(self):
-        now = time.time()
-        if now > self.histogram_time + 30:
-            self.update_compact_histogram()
-            self.histogram_time = now
-        return self.compact_fee_histogram
-
-    def update_compact_histogram(self):
-        # For efficiency, get_fees returns a compact histogram with
-        # variable bin size.  The compact histogram is an array of
-        # (fee, vsize) values.  vsize_n is the cumulative virtual size
-        # of mempool transactions with a fee rate in the interval
-        # [fee_(n-1), fee_n)], and fee_(n-1) > fee_n. Fee intervals
-        # are chosen so as to create tranches that contain at least
-        # 100kb of transactions
-        items = list(reversed(sorted(self.fee_histogram.items())))
-        out = []
-        size = 0
-        r = 0
-        binsize = 100000
-        for fee, s in items:
-            size += s
-            if size + r > binsize:
-                out.append((fee, size))
-                r += size - binsize
-                size = 0
-                binsize *= 1.1
-        self.compact_fee_histogram = out

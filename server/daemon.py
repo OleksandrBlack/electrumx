@@ -10,38 +10,34 @@ daemon.'''
 
 import asyncio
 import json
-import logging
 import time
+import traceback
 from calendar import timegm
 from struct import pack
 from time import strptime
 
 import aiohttp
 
-from lib.util import int_to_varint, hex_to_bytes
+from lib.util import LoggedClass, int_to_varint, hex_to_bytes
 from lib.hash import hex_str_to_hash
-from aiorpcx import JSONRPC
+from lib.jsonrpc import JSONRPC
 
 
 class DaemonError(Exception):
     '''Raised when the daemon returns an error in its results.'''
 
 
-class Daemon(object):
+class Daemon(LoggedClass):
     '''Handles connections to a daemon at the given URL.'''
 
     WARMING_UP = -28
     RPC_MISC_ERROR = -1
-    NON_TX = -5
 
     class DaemonWarmingUpError(Exception):
         '''Raised when the daemon returns an error in its results.'''
 
-    class NonTxError(Exception):
-        '''Raised when the requested transaction is missing.'''
-
     def __init__(self, env):
-        self.logger = logging.getLogger(self.__class__.__name__)
+        super().__init__()
         self.coin = env.coin
         self.set_urls(env.coin.daemon_urls(env.daemon_url))
         self._height = None
@@ -153,12 +149,10 @@ class Daemon(object):
                 log_error('connection problem - is your daemon running?')
             except self.DaemonWarmingUpError:
                 log_error('starting up checking blocks.')
-            except self.NonTxError:
-                log_error('TX not found.')
             except (asyncio.CancelledError, DaemonError):
                 raise
-            except Exception as e:
-                self.logger.exception(f'uncaught exception: {e}')
+            except Exception:
+                self.log_error(traceback.format_exc())
 
             await asyncio.sleep(secs)
             secs = min(max_secs, secs * 2, 1)
@@ -176,10 +170,6 @@ class Daemon(object):
                 return result['result']
             if err.get('code') == self.WARMING_UP:
                 raise self.DaemonWarmingUpError
-            if err.get('code') == self.NON_TX:
-                x = '{"status": "not found"}'
-                res = json.loads(x)
-                return res
             raise DaemonError(err)
 
         payload = {'method': method, 'id': self.next_req_id()}
@@ -227,8 +217,8 @@ class Daemon(object):
                     # probably because we did not provide arguments
                     available = True
                 else:
-                    self.logger.warning('error (code {:d}: {}) when testing '
-                                        'RPC availability of method {}'
+                    self.logger.warning('unexpected error (code {:d}: {}) when '
+                                        'testing RPC availability of method {}'
                                         .format(error_code, err.get("message"),
                                                 method))
                     available = False
@@ -272,10 +262,9 @@ class Daemon(object):
         network_info = await self.getnetworkinfo()
         return network_info['relayfee']
 
-    async def getrawtransaction(self, hex_hash, verbose=False):
+    async def getrawtransaction(self, hex_hash):
         '''Return the serialized raw transaction with the given hash.'''
-        return await self._send_single('getrawtransaction',
-                                       (hex_hash, int(verbose)))
+        return await self._send_single('getrawtransaction', (hex_hash, 0))
 
     async def getrawtransactions(self, hex_hashes, replace_errs=True):
         '''Return the serialized raw transactions with the given hashes.
@@ -316,7 +305,7 @@ class DashDaemon(Daemon):
         '''Broadcast a transaction to the network.'''
         return await self._send_single('masternodebroadcast', params)
 
-    async def masternode_list(self, params):
+    async def masternode_list(self, params ):
         '''Return the masternode status.'''
         return await self._send_single('masternodelist', params)
 
@@ -361,14 +350,13 @@ class LegacyRPCDaemon(Daemon):
         pbh = b.get('previousblockhash')
         if pbh is None:
             pbh = '0' * 64
-        return b''.join([
-            pack('<L', b.get('version')),
-            hex_str_to_hash(pbh),
-            hex_str_to_hash(b.get('merkleroot')),
-            pack('<L', self.timestamp_safe(b['time'])),
-            pack('<L', int(b.get('bits'), 16)),
-            pack('<L', int(b.get('nonce')))
-        ])
+        header = pack('<L', b.get('version')) \
+                 + hex_str_to_hash(pbh) \
+                 + hex_str_to_hash(b.get('merkleroot')) \
+                 + pack('<L', self.timestamp_safe(b['time'])) \
+                 + pack('<L', int(b.get('bits'), 16)) \
+                 + pack('<L', int(b.get('nonce')))
+        return header
 
     async def make_raw_block(self, b):
         '''Construct a raw block'''
