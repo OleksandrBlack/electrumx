@@ -886,6 +886,44 @@ class Zcash(EquihashMixin, Coin):
     RPC_PORT = 8232
     REORG_LIMIT = 800
 
+class SnowGem(EquihashMixin, Coin):
+    NAME = "SnowGem"
+    SHORTNAME = "XSG"
+    NET = "mainnet"
+    P2PKH_VERBYTE = bytes.fromhex("1C28")
+    P2SH_VERBYTES = [bytes.fromhex("1C2D")]
+    WIF_BYTE = bytes.fromhex("80")
+    GENESIS_HASH = ('00068b35729d9d2b0c294ff1fe9af009'
+                    '4740524311a131de40e7f705e4c29a5b')
+    DESERIALIZER = lib_tx.DeserializerZcash
+    TX_COUNT = 140698
+    TX_COUNT_HEIGHT = 102802
+    TX_PER_BLOCK = 2
+    RPC_PORT = 16112
+    REORG_LIMIT = 800
+    CHUNK_SIZE = 200
+    PEERS = [
+        'electrumsvr.snowgem.org s50002 t50001',
+        'electrumsvr2.snowgem.org s50002 t50001',
+    ]
+
+    @classmethod
+    def electrum_header(cls, header, height):
+        version, = struct.unpack('<I', header[:4])
+        timestamp, bits = struct.unpack('<II', header[100:108])
+
+        return {
+            'block_height': height,
+            'version': version,
+            'prev_block_hash': hash_to_str(header[4:36]),
+            'merkle_root': hash_to_str(header[36:68]),
+            'hash_reserved': hash_to_str(header[68:100]),
+            'timestamp': timestamp,
+            'bits': bits,
+            'nonce': hash_to_str(header[108:140]),
+            'n_solution': base64.b64encode(lib_tx.Deserializer(header, start=140)._read_varbytes()).decode('utf8')
+        }
+    
 class Hush(EquihashMixin, Coin):
     NAME = "Hush"
     SHORTNAME = "HUSH"
