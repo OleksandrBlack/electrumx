@@ -933,13 +933,14 @@ class SnowGem(EquihashMixin, Coin):
         return {
             'block_height': height,
             'version': version,
-            'prev_block_hash': hash_to_str(header[4:36]),
-            'merkle_root': hash_to_str(header[36:68]),
-            'hash_reserved': hash_to_str(header[68:100]),
+            'prev_block_hash': hash_to_hex_str(header[4:36]),
+            'merkle_root': hash_to_hex_str(header[36:68]),
+            'hash_reserved': hash_to_hex_str(header[68:100]),
             'timestamp': timestamp,
             'bits': bits,
-            'nonce': hash_to_str(header[108:140]),
-            'n_solution': base64.b64encode(lib_tx.Deserializer(header, start=140)._read_varbytes()).decode('utf8')
+            'nonce': hash_to_hex_str(header[108:140]),
+            'n_solution': base64.b64encode(lib_tx.Deserializer(
+                header, start=140)._read_varbytes()).decode('utf8')
         }
     
 class Hush(EquihashMixin, Coin):
