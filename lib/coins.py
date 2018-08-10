@@ -466,6 +466,23 @@ class Safecoin(EquihashMixin, Coin):
     PEERS = []
 
 
+class BitcoinZ(EquihashMixin, Coin):
+    NAME = "BitcoinZ"
+    SHORTNAME = "BTCZ"
+    NET = "mainnet"
+    P2PKH_VERBYTE = bytes.fromhex("1CB8")
+    P2SH_VERBYTES = [bytes.fromhex("1CBD")]
+    WIF_BYTE = bytes.fromhex("80")
+    GENESIS_HASH = ('f499ee3d498b4298ac6a64205b8addb7'
+                    'c43197e2a660229be65db8a4534d75c1')
+    DESERIALIZER = lib_tx.DeserializerZcash
+    TX_COUNT = 171976
+    TX_COUNT_HEIGHT = 81323
+    TX_PER_BLOCK = 3
+    RPC_PORT = 1979
+    REORG_LIMIT = 800
+
+
 class Emercoin(Coin):
     NAME = "Emercoin"
     SHORTNAME = "EMC"
