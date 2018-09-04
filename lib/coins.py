@@ -481,6 +481,23 @@ class BitcoinZ(EquihashMixin, Coin):
     TX_PER_BLOCK = 3
     RPC_PORT = 1979
     REORG_LIMIT = 800
+	
+	
+class AnonTestnet(EquihashMixin, Coin):
+    NAME = "ANON"
+    SHORTNAME = "ANONT"
+    NET = "testnet"
+    XPUB_VERBYTES = bytes.fromhex("043587CF")
+    XPRV_VERBYTES = bytes.fromhex("04358394")
+    P2PKH_VERBYTE = bytes.fromhex("1CCE")
+    P2SH_VERBYTES = [bytes.fromhex("1CBA")]
+    WIF_BYTE = bytes.fromhex("EF")	
+    GENESIS_HASH = ('01064a94d893deab5198592c9a950be8'
+                    'fdbb9ca7e9d512803a4872e176e116fb')
+    DESERIALIZER = lib_tx.DeserializerZcash
+    TX_PER_BLOCK = 3
+    RPC_PORT = 33129
+    REORG_LIMIT = 800
 
 
 class Emercoin(Coin):
