@@ -495,6 +495,8 @@ class TANON(EquihashMixin, Coin):
     GENESIS_HASH = ('01064a94d893deab5198592c9a950be8'
                     'fdbb9ca7e9d512803a4872e176e116fb')
     DESERIALIZER = lib_tx.DeserializerZcash
+    TX_COUNT = 4866
+    TX_COUNT_HEIGHT = 2050
     TX_PER_BLOCK = 3
     RPC_PORT = 33129
     REORG_LIMIT = 800
