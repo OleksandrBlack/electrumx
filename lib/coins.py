@@ -481,11 +481,11 @@ class BitcoinZ(EquihashMixin, Coin):
     TX_PER_BLOCK = 3
     RPC_PORT = 1979
     REORG_LIMIT = 800
-	
-	
+
+
 class AnonTestnet(EquihashMixin, Coin):
-    NAME = "ANON"
-    SHORTNAME = "ANONT"
+    NAME = "TANON"
+    SHORTNAME = "TANON"
     NET = "testnet"
     XPUB_VERBYTES = bytes.fromhex("043587CF")
     XPRV_VERBYTES = bytes.fromhex("04358394")
