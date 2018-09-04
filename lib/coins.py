@@ -486,7 +486,7 @@ class BitcoinZ(EquihashMixin, Coin):
 class TANON(EquihashMixin, Coin):
     NAME = "TANON"
     SHORTNAME = "TANON"
-    NET = "testnet"
+    NET = "mainnet"
     XPUB_VERBYTES = bytes.fromhex("043587CF")
     XPRV_VERBYTES = bytes.fromhex("04358394")
     P2PKH_VERBYTE = bytes.fromhex("1CCE")
