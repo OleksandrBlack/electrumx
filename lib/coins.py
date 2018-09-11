@@ -329,9 +329,11 @@ class EquihashMixin(object):
             'version': version,
             'prev_block_hash': hash_to_str(header[4:36]),
             'merkle_root': hash_to_str(header[36:68]),
+            'hash_reserved': hash_to_str(header[68:100]),
             'timestamp': timestamp,
             'bits': bits,
             'nonce': hash_to_str(header[108:140]),
+            'n_solution': base64.b64encode(lib_tx.Deserializer(header, start=140)._read_varbytes()).decode('utf8')
         }
 
     @classmethod
@@ -445,76 +447,6 @@ class BitcoinGold(EquihashMixin, BitcoinMixin, Coin):
         else:
             return double_sha256(header[:68] + header[100:112])
 
-
-class Safecoin(EquihashMixin, Coin):
-    NAME = "Safecoin"
-    SHORTNAME = "SAFE"
-    NET = "mainnet"
-    XPUB_VERBYTES = bytes.fromhex("0488B21F")
-    XPRV_VERBYTES = bytes.fromhex("0488ADE5")
-    P2PKH_VERBYTE = bytes.fromhex("3D")
-    P2SH_VERBYTES = [bytes.fromhex("56")]
-    WIF_BYTE = bytes.fromhex("BD")
-    GENESIS_HASH = ('09f5deffb9c816d82b8f696befa84681'
-                    '509274288c4529f213aeeac57999e8c9')
-    DESERIALIZER = lib_tx.DeserializerZcash
-    TX_COUNT = 17755
-    TX_COUNT_HEIGHT = 178594
-    TX_PER_BLOCK = 2
-    RPC_PORT = 8771
-    REORG_LIMIT = 800
-    PEERS = []
-
-
-class BitcoinZ(EquihashMixin, Coin):
-    NAME = "BitcoinZ"
-    SHORTNAME = "BTCZ"
-    NET = "mainnet"
-    P2PKH_VERBYTE = bytes.fromhex("1CB8")
-    P2SH_VERBYTES = [bytes.fromhex("1CBD")]
-    WIF_BYTE = bytes.fromhex("80")
-    GENESIS_HASH = ('f499ee3d498b4298ac6a64205b8addb7'
-                    'c43197e2a660229be65db8a4534d75c1')
-    DESERIALIZER = lib_tx.DeserializerZcash
-    TX_COUNT = 171976
-    TX_COUNT_HEIGHT = 81323
-    TX_PER_BLOCK = 3
-    RPC_PORT = 1979
-    REORG_LIMIT = 800
-
-class AnonTestnet(ANON):
-    SHORTNAME = "TANON"
-    NET = "testnet"
-    XPUB_VERBYTES = bytes.fromhex("043587CF")
-    XPRV_VERBYTES = bytes.fromhex("04358394")
-    P2PKH_VERBYTE = bytes.fromhex("1CCE")
-    P2SH_VERBYTES = [bytes.fromhex("1CBA")]
-    WIF_BYTE = bytes.fromhex("EF")	
-    GENESIS_HASH = ('01064a94d893deab5198592c9a950be8'
-                    'fdbb9ca7e9d512803a4872e176e116fb')
-    TX_COUNT = 4866
-    TX_COUNT_HEIGHT = 2050
-    TX_PER_BLOCK = 2
-    REORG_LIMIT = 800
-
-	
-class Zclassic(EquihashMixin, Coin):
-    NAME = "Zclassic"
-    SHORTNAME = "ZCL"
-    NET = "mainnet"
-    P2PKH_VERBYTE = bytes.fromhex("1CB8")
-    P2SH_VERBYTES = [bytes.fromhex("1CBD")]
-    WIF_BYTE = bytes.fromhex("80")
-    GENESIS_HASH = ('0007104ccda289427919efc39dc9e4d4'
-                    '99804b7bebc22df55f8b834301260602')
-    DESERIALIZER = lib_tx.DeserializerZcash
-    TX_COUNT = 329196
-    TX_COUNT_HEIGHT = 68379
-    TX_PER_BLOCK = 5
-    RPC_PORT = 8023
-    REORG_LIMIT = 800
-
-	
 
 class Emercoin(Coin):
     NAME = "Emercoin"
@@ -937,9 +869,134 @@ class Zcash(EquihashMixin, Coin):
     RPC_PORT = 8232
     REORG_LIMIT = 800
 
+class Hush(EquihashMixin, Coin):
+    NAME = "Hush"
+    SHORTNAME = "HUSH"
+    NET = "mainnet"
+    P2PKH_VERBYTE = bytes.fromhex("1CB8")
+    P2SH_VERBYTES = [bytes.fromhex("1CBD")]
+    WIF_BYTE = bytes.fromhex("80")
+    GENESIS_HASH         = ( '0003a67bc26fe564b75daf11186d3606'
+                          '52eb435a35ba3d9d3e7e5d5f8e62dc17')
+    DESERIALIZER = lib_tx.DeserializerZcash
+    TX_COUNT = 329196
+    TX_COUNT_HEIGHT = 68379
+    TX_PER_BLOCK = 5
+    RPC_PORT = 8822
+    REORG_LIMIT = 800
+
+class Zclassic(EquihashMixin, Coin):
+    NAME = "Zclassic"
+    SHORTNAME = "ZCL"
+    NET = "mainnet"
+    P2PKH_VERBYTE = bytes.fromhex("1CB8")
+    P2SH_VERBYTES = [bytes.fromhex("1CBD")]
+    WIF_BYTE = bytes.fromhex("80")
+    GENESIS_HASH         = ( '0007104ccda289427919efc39dc9e4d4'
+                             '99804b7bebc22df55f8b834301260602')
+    DESERIALIZER = lib_tx.DeserializerZcash
+    TX_COUNT = 329196
+    TX_COUNT_HEIGHT = 68379
+    TX_PER_BLOCK = 5
+    RPC_PORT = 8044
+    REORG_LIMIT = 800
+    CHUNK_SIZE = 200
+    PEERS = [
+        'zcl-electrum.com s t50002',
+        'electrum.zclassicblue.org s t50002',
+        'electrum.zclassic.community s t50002',
+    ]
+
+class ZclassicTestnet(EquihashMixin, Coin):
+    NAME = "Zclassic"
+    SHORTNAME = "ZCL"
+    NET = "testnet"
+    P2PKH_VERBYTE = bytes.fromhex("1D25")
+    P2SH_VERBYTES = [bytes.fromhex("1CBA")]
+    WIF_BYTE = bytes.fromhex("EF")
+    GENESIS_HASH         = ( '03e1c4bb705c871bf9bfda3e74b7f8f8'
+                             '6bff267993c215a89d5795e3708e5e1f')
+    DESERIALIZER = lib_tx.DeserializerZcash
+    TX_COUNT = 329196
+    TX_COUNT_HEIGHT = 68379
+    TX_PER_BLOCK = 5
+    RPC_PORT = 18023
+    REORG_LIMIT = 800
+    CHUNK_SIZE = 200
+
+class Safecoin(EquihashMixin, Coin):
+    NAME = "Safecoin"
+    SHORTNAME = "SAFE"
+    NET = "mainnet"
+    XPUB_VERBYTES = bytes.fromhex("0488B21F")
+    XPRV_VERBYTES = bytes.fromhex("0488ADE5")
+    P2PKH_VERBYTE = bytes.fromhex("3D")
+    P2SH_VERBYTES = [bytes.fromhex("56")]
+    WIF_BYTE = bytes.fromhex("BD")
+    GENESIS_HASH = ('09f5deffb9c816d82b8f696befa84681'
+                    '509274288c4529f213aeeac57999e8c9')
+    DESERIALIZER = lib_tx.DeserializerZcash
+    TX_COUNT = 17755
+    TX_COUNT_HEIGHT = 178594
+    TX_PER_BLOCK = 2
+    RPC_PORT = 8771
+    REORG_LIMIT = 800
+    PEERS = []
+
+
+class BitcoinZ(EquihashMixin, Coin):
+    NAME = "BitcoinZ"
+    SHORTNAME = "BTCZ"
+    NET = "mainnet"
+    P2PKH_VERBYTE = bytes.fromhex("1CB8")
+    P2SH_VERBYTES = [bytes.fromhex("1CBD")]
+    WIF_BYTE = bytes.fromhex("80")
+    GENESIS_HASH = ('f499ee3d498b4298ac6a64205b8addb7'
+                    'c43197e2a660229be65db8a4534d75c1')
+    DESERIALIZER = lib_tx.DeserializerZcash
+    TX_COUNT = 171976
+    TX_COUNT_HEIGHT = 81323
+    TX_PER_BLOCK = 3
+    RPC_PORT = 1979
+    REORG_LIMIT = 800
+
+class ANON(EquihashMixin, Coin):
+    NAME = "ANON"
+    SHORTNAME = "ANON"
+    NET = "mainnet"
+    P2PKH_VERBYTE = bytes.fromhex("0582")
+    P2SH_VERBYTES = [bytes.fromhex("5389")]
+    WIF_BYTE = bytes.fromhex("80")
+    GENESIS_HASH         = ( '053a237d7ad7106e341a403286604df5'
+                             '5bfe6f301fc9fff03a06f81c8c565b34')
+    DESERIALIZER = lib_tx.DeserializerZcash
+    TX_COUNT = 329196
+    TX_COUNT_HEIGHT = 68379
+    TX_PER_BLOCK = 5
+    RPC_PORT = 7932
+    REORG_LIMIT = 800
+    CHUNK_SIZE = 200
+
+class ANONTestnet(EquihashMixin, Coin):
+    NAME = "ANON"
+    SHORTNAME = "TANON"
+    NET = "testnet"
+    P2PKH_VERBYTE = bytes.fromhex("1CCE")
+    P2SH_VERBYTES = [bytes.fromhex("1CBA")]
+    WIF_BYTE = bytes.fromhex("EF")
+    GENESIS_HASH         = ( '01064a94d893deab5198592c9a950be8'
+                             'fdbb9ca7e9d512803a4872e176e116fb')
+    DESERIALIZER = lib_tx.DeserializerZcash
+    TX_COUNT = 329196
+    TX_COUNT_HEIGHT = 68379
+    TX_PER_BLOCK = 5
+    RPC_PORT = 33129
+    REORG_LIMIT = 800
+    CHUNK_SIZE = 200
+
 class SnowGem(EquihashMixin, Coin):
     NAME = "SnowGem"
-    SHORTNAME = "XSG"
+    SHORTNAME = "SNG"
     NET = "mainnet"
     P2PKH_VERBYTE = bytes.fromhex("1C28")
     P2SH_VERBYTES = [bytes.fromhex("1C2D")]
@@ -966,31 +1023,48 @@ class SnowGem(EquihashMixin, Coin):
         return {
             'block_height': height,
             'version': version,
-            'prev_block_hash': hash_to_hex_str(header[4:36]),
-            'merkle_root': hash_to_hex_str(header[36:68]),
-            'hash_reserved': hash_to_hex_str(header[68:100]),
+            'prev_block_hash': hash_to_str(header[4:36]),
+            'merkle_root': hash_to_str(header[36:68]),
+            'hash_reserved': hash_to_str(header[68:100]),
             'timestamp': timestamp,
             'bits': bits,
-            'nonce': hash_to_hex_str(header[108:140]),
-            'n_solution': base64.b64encode(lib_tx.Deserializer(
-                header, start=140)._read_varbytes()).decode('utf8')
+            'nonce': hash_to_str(header[108:140]),
+            'n_solution': base64.b64encode(lib_tx.Deserializer(header, start=140)._read_varbytes()).decode('utf8')
         }
-    
-class Hush(EquihashMixin, Coin):
-    NAME = "Hush"
-    SHORTNAME = "HUSH"
+	
+class BitcoinPrivate(EquihashMixin, Coin):
+    NAME = "BitcoinPrivate"
+    SHORTNAME = "BTCP"
     NET = "mainnet"
-    P2PKH_VERBYTE = bytes.fromhex("1CB8")
-    P2SH_VERBYTES = [bytes.fromhex("1CBD")]
+    P2PKH_VERBYTE = bytes.fromhex("1325")
+    P2SH_VERBYTES = [bytes.fromhex("13AF")]
     WIF_BYTE = bytes.fromhex("80")
-    GENESIS_HASH         = ( '0003a67bc26fe564b75daf11186d3606'
-                          '52eb435a35ba3d9d3e7e5d5f8e62dc17')
+    GENESIS_HASH         = ( '0007104ccda289427919efc39dc9e4d4'
+                             '99804b7bebc22df55f8b834301260602')
     DESERIALIZER = lib_tx.DeserializerZcash
     TX_COUNT = 329196
     TX_COUNT_HEIGHT = 68379
     TX_PER_BLOCK = 5
-    RPC_PORT = 8822
+    RPC_PORT = 7932
     REORG_LIMIT = 800
+    CHUNK_SIZE = 200
+
+class BitcoinPrivateTestnet(EquihashMixin, Coin):
+    NAME = "BitcoinPrivate"
+    SHORTNAME = "BTCP"
+    NET = "testnet"
+    P2PKH_VERBYTE = bytes.fromhex("1958")
+    P2SH_VERBYTES = [bytes.fromhex("19E0")]
+    WIF_BYTE = bytes.fromhex("EF")
+    GENESIS_HASH         = ( '03e1c4bb705c871bf9bfda3e74b7f8f8'
+                             '6bff267993c215a89d5795e3708e5e1f')
+    DESERIALIZER = lib_tx.DeserializerZcash
+    TX_COUNT = 329196
+    TX_COUNT_HEIGHT = 68379
+    TX_PER_BLOCK = 5
+    RPC_PORT = 17932
+    REORG_LIMIT = 800
+    CHUNK_SIZE = 200
 
 class Komodo(KomodoMixin, EquihashMixin, Coin):
     NAME = "Komodo"
@@ -1308,3 +1382,41 @@ class Sibcoin(Dash):
         '''
         import x11_gost_hash
         return x11_gost_hash.getPoWHash(header)
+
+
+class Chips(Coin):
+    NAME = "Chips"
+    SHORTNAME = "CHIPS"
+    NET = "mainnet"
+    P2PKH_VERBYTE = bytes.fromhex("3c")
+    P2SH_VERBYTES = [bytes.fromhex("55")]
+    WIF_BYTE = bytes.fromhex("bc")
+    GENESIS_HASH = ('0000006e75f6aa0efdbf7db03132aa4e'
+                    '4d0c84951537a6f5a7c39a0a9d30e1e7')
+    DESERIALIZER = lib_tx.DeserializerSegWit
+    TX_COUNT = 145290
+    TX_COUNT_HEIGHT = 318637
+    TX_PER_BLOCK = 2
+    RPC_PORT = 57776
+    REORG_LIMIT = 800
+
+
+class Feathercoin(Coin):
+    NAME = "Feathercoin"
+    SHORTNAME = "FTC"
+    NET = "mainnet"
+    XPUB_VERBYTES = bytes.fromhex("0488BC26")
+    XPRV_VERBYTES = bytes.fromhex("0488DAEE")
+    P2PKH_VERBYTE = bytes.fromhex("0E")
+    P2SH_VERBYTES = [bytes.fromhex("32"), bytes.fromhex("05")]
+    WIF_BYTE = bytes.fromhex("8E")
+    GENESIS_HASH = ('12a765e31ffd4059bada1e25190f6e98'
+                    'c99d9714d334efa41a195a7e7e04bfe2')
+    TX_COUNT = 3170843
+    TX_COUNT_HEIGHT = 1981777
+    TX_PER_BLOCK = 2
+    RPC_PORT = 9337
+    REORG_LIMIT = 2000
+    PEERS = [
+        'electrumx-ch-1.feathercoin.ch s t',
+    ]

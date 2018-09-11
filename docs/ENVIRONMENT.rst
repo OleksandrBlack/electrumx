@@ -92,11 +92,17 @@ These environment variables are optional:
 
   If set ElectrumX will serve TCP clients on **HOST**:**TCP_PORT**.
 
+  **Note**: ElectrumX will not serve TCP connections until it has
+  fully caught up with your daemon.
+
 * **SSL_PORT**
 
   If set ElectrumX will serve SSL clients on **HOST**:**SSL_PORT**.
   If set then SSL_CERTFILE and SSL_KEYFILE must be defined and be
   filesystem paths to those SSL files.
+
+  **Note**: ElectrumX will not serve SSL connections until it has
+  fully caught up with your daemon.
 
 * **RPC_HOST**
 
@@ -142,6 +148,10 @@ These environment variables are optional:
     string.  For example, `/BitcoinUnlimited:0.12.1(EB16; AD4)/`.
   + **$DONATION_ADDRESS** is replaced with the address from the
     **DONATION_ADDRESS** environment variable.
+
+  See https://github.com/shsmith/electrumx-banner-updater for a script
+  that updates a banner file periodically with useful statistics about
+  fees, last block time and height, etc.
 
 * **TOR_BANNER_FILE**
 

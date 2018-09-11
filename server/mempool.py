@@ -37,19 +37,13 @@ class MemPool(util.LoggedClass):
         self.controller = controller
         self.coin = bp.coin
         self.db = bp
-        self.touched = bp.touched
-        self.touched_event = asyncio.Event()
-        self.prioritized = set()
+        self.touched = set()
         self.stop = False
         self.txs = {}
         self.hashXs = defaultdict(set)  # None can be a key
+        self.synchronized_event = asyncio.Event()
 
-    def prioritize(self, tx_hash):
-        '''Prioritize processing the given hash.  This is important during
-        initial mempool sync.'''
-        self.prioritized.add(tx_hash)
-
-    def resync_daemon_hashes(self, unprocessed, unfetched):
+    def _resync_daemon_hashes(self, unprocessed, unfetched):
         '''Re-sync self.txs with the list of hashes in the daemon's mempool.
 
         Additionally, remove gone hashes from unprocessed and
@@ -90,18 +84,19 @@ class MemPool(util.LoggedClass):
         unfetched = set()
         txs = self.txs
         fetch_size = 800
-        process_some = self.async_process_some(unfetched, fetch_size // 2)
+        process_some = self._async_process_some(fetch_size // 2)
 
-        await self.daemon.mempool_refresh_event.wait()
         self.logger.info('beginning processing of daemon mempool.  '
                          'This can take some time...')
+        await self.daemon.mempool_refresh_event.wait()
         next_log = 0
         loops = -1  # Zero during initial catchup
 
         while True:
             # Avoid double notifications if processing a block
             if self.touched and not self.processing_new_block():
-                self.touched_event.set()
+                self.controller.notify_sessions(self.touched)
+                self.touched.clear()
 
             # Log progress / state
             todo = len(unfetched) + len(unprocessed)
@@ -111,6 +106,8 @@ class MemPool(util.LoggedClass):
                                  '({:,d} txs left)'.format(pct, todo))
             if not todo:
                 loops += 1
+                if loops > 0:
+                    self.synchronized_event.set()
                 now = time.time()
                 if now >= next_log and loops:
                     self.logger.info('{:,d} txs touching {:,d} addresses'
@@ -119,10 +116,9 @@ class MemPool(util.LoggedClass):
 
             try:
                 if not todo:
-                    self.prioritized.clear()
                     await self.daemon.mempool_refresh_event.wait()
 
-                self.resync_daemon_hashes(unprocessed, unfetched)
+                self._resync_daemon_hashes(unprocessed, unfetched)
                 self.daemon.mempool_refresh_event.clear()
 
                 if unfetched:
@@ -139,7 +135,7 @@ class MemPool(util.LoggedClass):
                 self.stop = True
                 break
 
-    def async_process_some(self, unfetched, limit):
+    def _async_process_some(self, limit):
         pending = []
         txs = self.txs
 
@@ -147,10 +143,6 @@ class MemPool(util.LoggedClass):
             nonlocal pending
 
             raw_txs = {}
-
-            for hex_hash in self.prioritized:
-                if hex_hash in unprocessed:
-                    raw_txs[hex_hash] = unprocessed.pop(hex_hash)
 
             while unprocessed and len(raw_txs) < limit:
                 hex_hash, raw_tx = unprocessed.popitem()
@@ -177,6 +169,17 @@ class MemPool(util.LoggedClass):
 
         return process
 
+    def on_new_block(self, touched):
+        '''Called after processing one or more new blocks.
+
+        Touched is a set of hashXs touched by the transactions in the
+        block.  Caller must be aware it is modified by this function.
+        '''
+        # Minor race condition here with mempool processor thread
+        touched.update(self.touched)
+        self.touched.clear()
+        self.controller.notify_sessions(touched)
+
     def processing_new_block(self):
         '''Return True if we're processing a new block.'''
         return self.daemon.cached_height() > self.db.db_height
@@ -202,11 +205,11 @@ class MemPool(util.LoggedClass):
         db_utxo_lookup = self.db.db_utxo_lookup
         txs = self.txs
 
-        # Deserialize each tx and put it in our priority queue
+        # Deserialize each tx and put it in a pending list
         for tx_hash, raw_tx in raw_tx_map.items():
             if tx_hash not in txs:
                 continue
-            tx, _tx_hash = deserializer(raw_tx).read_tx()
+            tx = deserializer(raw_tx).read_tx()
 
             # Convert the tx outputs into (hashX, value) pairs
             txout_pairs = [(script_hashX(txout.pk_script), txout.value)
@@ -290,7 +293,7 @@ class MemPool(util.LoggedClass):
             txin_pairs, txout_pairs = item
             tx_fee = (sum(v for hashX, v in txin_pairs) -
                       sum(v for hashX, v in txout_pairs))
-            tx, tx_hash = deserializer(raw_tx).read_tx()
+            tx = deserializer(raw_tx).read_tx()
             unconfirmed = any(hash_to_str(txin.prev_hash) in self.txs
                               for txin in tx.inputs)
             result.append((hex_hash, tx_fee, unconfirmed))
@@ -308,7 +311,7 @@ class MemPool(util.LoggedClass):
         for hex_hash, raw_tx in pairs:
             if not raw_tx:
                 continue
-            tx, tx_hash = deserializer(raw_tx).read_tx()
+            tx = deserializer(raw_tx).read_tx()
             for txin in tx.inputs:
                 spends.add((txin.prev_hash, txin.prev_idx))
         return spends
