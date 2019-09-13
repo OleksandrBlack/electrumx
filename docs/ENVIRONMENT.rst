@@ -1,194 +1,284 @@
+.. _environment:
+
 =====================
 Environment Variables
 =====================
 
-ElectrumX takes no command line arguments, instead its behaviour is
-controlled by environment variables.  Only a few are required to be
-given, the rest will have sensible defaults if not specified.  Many of
-the defaults around resource usage are conservative; I encourage you
-to review them.
+ElectrumX takes no command line arguments, instead its behaviour is controlled by
+environment variables.  Only a few are required to be given, the rest will have sensible
+defaults if not specified.  Many of the defaults around resource usage are conservative; I
+encourage you to review them.
 
-Note: by default the server will only serve to connections from the
-same machine.  To be accessible to other users across the internet you
-must set **HOST** appropriately; see below.
+.. note:: set :envvar:`SERVICES` appropriately to be able to connect to your server.  For
+  clients across the internet to know what services you offer you must advertize your
+  services with :envvar:`REPORT_SERVICES`.
 
 
 Required
---------
+========
 
 These environment variables are always required:
 
-* **COIN**
+.. envvar:: COIN
 
-  Must be a *NAME* from one of the **Coin** classes in
+  Must be a :attr:`NAME` from one of the :class:`Coin` classes in
   `lib/coins.py`_.
 
-* **DB_DIRECTORY**
+.. envvar:: DB_DIRECTORY
 
   The path to the database directory.  Relative paths should be
   relative to the parent process working directory.  This is the
   directory of the `run` script if you use it.
 
-* **DAEMON_URL**
+.. envvar:: DAEMON_URL
 
   A comma-separated list of daemon URLs.  If more than one is provided
   ElectrumX will initially connect to the first, and failover to
   subsequent ones round-robin style if one stops working.
 
-  The generic form of a daemon URL is:
+  The generic form of a daemon URL is::
 
-     `http://username:password@hostname:port/`
+     http://username:password@hostname:port/
 
-  The leading `http://` is optional, as is the trailing slash.  The
-  `:port` part is also optional and will default to the standard RPC
-  port for **COIN** and **NET** if omitted.
+  The leading ``http://`` is optional, as is the trailing slash.  The
+  ``:port`` part is also optional and will default to the standard RPC
+  port for :envvar:`COIN` and :envvar:`NET` if omitted.
 
 
-For the `run` script
---------------------
+For the ``run`` script
+======================
 
-The following are required if you use the `run` script:
+The following are required if you use the ``run`` script:
 
-* **ELECTRUMX**
+.. envvar:: ELECTRUMX
 
-  The path to the electrumx_server.py script.  Relative paths should
-  be relative to the directory of the `run` script.
+  The path to the electrumx_server script.  Relative paths should
+  be relative to the directory of the ``run`` script.
 
-* **USERNAME**
+.. envvar:: USERNAME
 
   The username the server will run as.
 
 
+Services
+========
+
+These two environment variables are comma-separated lists of individual *services*.
+
+A **service** has the general form::
+
+  protocol://host:port
+
+*protocol* is case-insensitive.  The recognised protocols are::
+
+   tcp    Plaintext TCP sockets
+   ssl    SSL-encrypted TCP sockets
+   ws     Plaintext websockets
+   wss    SSL-encrypted websockets
+   rpc    Plaintext RPC
+
+In a services list, a protocol can be specified multiple times, with different hosts or
+ports.  This might be useful for multi-homed hosts, or if you offer both Tor and clearnet
+services.
+
+*host* can be a hostname, an IPv4 address, or an IPv6 address enclosed in square brackets.
+
+*port* is an integer from :const:`1` to :const:`65535` inclusive.
+
+Where documented, one or more of *protocol*, *host* and *port* can be omitted, in which
+case a default value will be assumed.
+
+Here are some examples of valid services::
+
+  tcp://host.domain.tld:50001           # Hostname, lowercase protocol, port
+  SSL://23.45.67.78:50002               # An IPv4 address, upper-case protocol, port
+  rpC://localhost                       # Host as a string, mixed-case protocol, default port
+  ws://[1234:5678:abcd::5601]:8000      # Host as an IPv6 address
+  wss://h3ubaasdlkheryasd.onion:50001   # Host as a Tor ".onion" address
+  rpc://:8000                           # Default host, port given
+  host.domain.tld:5151                  # Default protocol, hostname, port
+  rpc://                                # RPC protocol, default host and port
+
+.. note:: ElectrumX will not serve any incoming connections until it has fully caught up
+          with your bitcoin daemon.  The only exception is local **RPC** connections,
+          which are served at any time after the server has initialized.
+
+.. envvar:: SERVICES
+
+  A comma-separated list of services ElectrumX will accept incoming connections for.
+
+  This environment variable determines what interfaces and ports the server listens on, so
+  must be set correctly for any connection to the server to succeed.  If unset or empty,
+  ElectrumX will not listen for any incoming connections.
+
+  *protocol* can be any recognised protocol.
+
+  *host* defaults to all of the machine's interfaces, except if the protocol is **rpc**,
+  when it defaults to :const:`localhost`.
+
+  *port* can only be defaulted for **rpc** where the default is :const:`8000`.
+
+  On most Unix systems ports below 1024 require elevated priveleges so choosing a higher
+  port is advisable.  On Debian for example, this can be achieved by installinng
+  libcap2-bin package::
+
+    sudo apt-get update && sudo apt-get -y install libcap2-bin
+    sudo setcap cap_net_bind_service=+ep /path/to/electrumx_server
+
+  If any listed service has protocol **ssl** or **wss** then :envvar:`SSL_CERTFILE` and
+  :envvar:`SSL_KEYFILE` must be defined.
+
+  Tor **onion** addresses are invalid in :envvar:`SERVICES`.
+
+  Here is an example value of the :envvar:`SERVICES` environment variable::
+
+    tcp://:50001,ssl://:50002,wss://:50004,rpc://
+
+  This serves **tcp**, **ssl**, **wss** on all interfaces on ports 50001, 50002 and 50004
+  respectively.  **rpc** is served on its default host :const:`localhost` and default port
+  :const:`8000`.
+
+.. envvar:: REPORT_SERVICES
+
+  A comma-separated list of services ElectrumX will advertize and other servers in the
+  server network (if peer discovery is enabled), and any successful connection.
+
+  This environment variable must be set correctly, taking account of your network,
+  firewall and router setup, for clients and other servers to see how to connect to your
+  server.  If not set or empty, no services are advertized.
+
+  The **rpc** protocol, special IP addresses (inlcuding private ones if peer discovery is
+  enabled), and :const:`localhost` are invalid in :envvar:`REPORT_SERVICES`.
+
+  Here is an example value of the :envvar:`REPORT_SERVICES` environment variable::
+
+    tcp://sv.usebsv.com:50001,ssl://sv.usebsv.com:50002,wss://sv.usebsv.com:50004
+
+  This advertizes **tcp**, **ssl**, **wss** services at :const:`sv.usebsv.com` on ports
+  50001, 50002 and 50004 respectively.
+
+.. note:: Certificate Authority-signed certificates don't work over Tor, so you should
+          only have Tor services` in :envvar:`REPORT_SERVICES` if yours is self-signed.
+
+.. envvar:: SSL_CERTFILE
+
+  The filesystem path to your SSL certificate file.
+
+  :ref:`SSL certificates`
+
+.. envvar:: SSL_KEYFILE
+
+  The filesystem path to your SSL key file.
+
+  :ref:`SSL certificates`
+
+
 Miscellaneous
--------------
+=============
 
 These environment variables are optional:
 
-* **ALLOW_ROOT**
+.. envvar:: LOG_FORMAT
 
-  Set this environment variable to anything non-empty to allow running ElectrumX as root.
+  The Python logging `format string
+  <https://docs.python.org/3/library/logging.html#logrecord-attributes>`_
+  to use.  Defaults to ``%(levelname)s:%(name)s:%(message)s``.
 
-* **NET**
+.. envvar:: LOG_LEVEL
 
-  Must be a *NET* from one of the **Coin** classes in `lib/coins.py`_.
-  Defaults to `mainnet`.
+  The default Python logging level, a case-insensitive string.  Useful values
+  are 'debug', 'info', 'warning' and 'error'.
 
-* **DB_ENGINE**
+.. envvar:: ALLOW_ROOT
+
+  Set this environment variable to anything non-empty to allow running
+  ElectrumX as root.
+
+.. envvar:: NET
+
+  Must be a :envvar:`NET` from one of the **Coin** classes in
+  `lib/coins.py`_.  Defaults to ``mainnet``.
+
+.. envvar:: DB_ENGINE
 
   Database engine for the UTXO and history database.  The default is
-  `leveldb`.  The other alternative is `rocksdb`.  You will need to
-  install the appropriate python package for your engine.  The value
-  is not case sensitive.
+  ``leveldb``.  The other alternative is ``rocksdb``.  You will need
+  to install the appropriate python package for your engine.  The
+  value is not case sensitive.
 
-* **HOST**
-
-  The host or IP address that the TCP and SSL servers will use when
-  binding listening sockets.  Defaults to `localhost`.  To listen on
-  multiple specific addresses specify a comma-separated list.  Set to
-  an empty string to listen on all available interfaces (likely both
-  IPv4 and IPv6).
-
-* **TCP_PORT**
-
-  If set ElectrumX will serve TCP clients on **HOST**:**TCP_PORT**.
-
-  **Note**: ElectrumX will not serve TCP connections until it has
-  fully caught up with your daemon.
-
-* **SSL_PORT**
-
-  If set ElectrumX will serve SSL clients on **HOST**:**SSL_PORT**.
-  If set then SSL_CERTFILE and SSL_KEYFILE must be defined and be
-  filesystem paths to those SSL files.
-
-  **Note**: ElectrumX will not serve SSL connections until it has
-  fully caught up with your daemon.
-
-* **RPC_HOST**
-
-  The host or IP address that the RPC server will listen on and
-  defaults to `localhost`.  To listen on multiple specific addresses
-  specify a comma-separated list.  Servers with unusual networking
-  setups might want to specify e.g. `::1` or `127.0.0.1` explicitly
-  rather than defaulting to `localhost`.
-
-  An empty string (normally indicating all interfaces) is interpreted
-  as `localhost`, because allowing access to the server's RPC
-  interface to arbitrary connections across the internet is not a
-  good idea.
-
-* **RPC_PORT**
-
-  ElectrumX will listen on this port for local RPC connections.
-  ElectrumX listens for RPC connections unless this is explicitly set
-  to blank.  The default depends on **COIN** and **NET** (e.g., 8000
-  for Bitcoin mainnet) if not set, as indicated in `lib/coins.py`_.
-
-* **DONATION_ADDRESS**
+.. envvar:: DONATION_ADDRESS
 
   The server donation address reported to Electrum clients.  Defaults
   to empty, which Electrum interprets as meaning there is none.
 
-* **BANNER_FILE**
+.. envvar:: BANNER_FILE
 
   The path to a banner file to serve to clients in Electrum's
   "Console" tab.  Relative file paths must be relative to
-  **DB_DIRECTORY**.  The banner file is re-read for each new client.
+  :envvar:`DB_DIRECTORY`.  The banner file is re-read for each new
+  client.
 
   You can place several meta-variables in your banner file, which will be
   replaced before serving to a client.
 
-  + **$SERVER_VERSION** is replaced with the ElectrumX version you are
-    running, such as *1.0.10*.
-  + **$SERVER_SUBVERSION** is replaced with the ElectrumX user agent
-    string.  For example, `ElectrumX 1.0.10`.
-  + **$DAEMON_VERSION** is replaced with the daemon's version as a
-    dot-separated string. For example *0.12.1*.
-  + **$DAEMON_SUBVERSION** is replaced with the daemon's user agent
-    string.  For example, `/BitcoinUnlimited:0.12.1(EB16; AD4)/`.
-  + **$DONATION_ADDRESS** is replaced with the address from the
-    **DONATION_ADDRESS** environment variable.
+  + ``$SERVER_VERSION`` is replaced with the ElectrumX version you are
+    running, such as ``1.0.10``.
+  + ``$SERVER_SUBVERSION`` is replaced with the ElectrumX user agent
+    string.  For example, ``ElectrumX 1.0.10``.
+  + ``$DAEMON_VERSION`` is replaced with the daemon's version as a
+    dot-separated string. For example ``0.12.1``.
+  + ``$DAEMON_SUBVERSION`` is replaced with the daemon's user agent
+    string.  For example, ``/BitcoinUnlimited:0.12.1(EB16; AD4)/``.
+  + ``$DONATION_ADDRESS`` is replaced with the address from the
+    :envvar:`DONATION_ADDRESS` environment variable.
 
-  See https://github.com/shsmith/electrumx-banner-updater for a script
-  that updates a banner file periodically with useful statistics about
-  fees, last block time and height, etc.
+  See `here <https://github.com/shsmith/electrumx-banner-updater>`_
+  for a script that updates a banner file periodically with useful
+  statistics about fees, last block time and height, etc.
 
-* **TOR_BANNER_FILE**
+.. envvar:: TOR_BANNER_FILE
 
-  As for **BANNER_FILE** (which is also the default) but shown to
-  incoming connections believed to be to your Tor hidden service.
+  As for :envvar:`BANNER_FILE` (which is also the default) but shown
+  to incoming connections believed to be to your Tor hidden service.
 
-* **ANON_LOGS**
+.. envvar:: ANON_LOGS
 
   Set to anything non-empty to replace IP addresses in logs with
-  redacted text like 'xx.xx.xx.xx:xxx'.  By default IP addresses will
-  be written to logs.
+  redacted text like ``xx.xx.xx.xx:xxx``.  By default IP addresses
+  will be written to logs.
 
-* **LOG_SESSIONS**
+.. envvar:: LOG_SESSIONS
 
   The number of seconds between printing session statistics to the
-  log.  The output is identical to the **sessions** RPC command except
-  that **ANON_LOGS** is honoured.  Defaults to 3600.  Set to zero to
-  suppress this logging.
+  log.  The output is identical to the :ref:`sessions` RPC command
+  except that :envvar:`ANON_LOGS` is honoured.  Defaults to 3600.  Set
+  to zero to suppress this logging.
 
-* **REORG_LIMIT**
+.. envvar:: REORG_LIMIT
 
   The maximum number of blocks to be able to handle in a chain
   reorganisation.  ElectrumX retains some fairly compact undo
   information for this many blocks in levelDB.  The default is a
-  function of **COIN** and **NET**; for Bitcoin mainnet it is 200.
+  function of :envvar:`COIN` and :envvar:`NET`; for Bitcoin mainnet it
+  is 200.
 
-* **EVENT_LOOP_POLICY**
+.. envvar:: EVENT_LOOP_POLICY
 
   The name of an event loop policy to replace the default asyncio
-  policy, if any.  At present only `uvloop` is accepted, in which case
-  you must have installed the `uvloop`_ Python package.
+  policy, if any.  At present only ``uvloop`` is accepted, in which
+  case you must have installed the `uvloop`_ Python package.
 
   If you are not sure what this means leave it unset.
 
+.. envvar:: DROP_CLIENT
+
+  Set a regular expression to disconnect any client based on their
+  version string. For example to drop versions from 1.0 to 1.2 use
+  the regex ``1\.[0-2]\.\d+``.
+
 
 Resource Usage Limits
----------------------
+=====================
 
 The following environment variables are all optional and help to limit
 server resource consumption and prevent simple DoS.
@@ -198,73 +288,103 @@ Address subscriptions in ElectrumX are very cheap - they consume about
 two subscription-related defaults below are low and encourage you to
 raise them.
 
-* **MAX_SESSIONS**
+.. envvar:: MAX_SESSIONS
 
   The maximum number of incoming connections.  Once reached, TCP and
   SSL listening sockets are closed until the session count drops
   naturally to 95% of the limit.  Defaults to 1,000.
 
-* **MAX_SEND**
+.. envvar:: MAX_SEND
 
   The maximum size of a response message to send over the wire, in
-  bytes.  Defaults to 1,000,000.  Values smaller than 350,000 are
-  taken as 350,000 because standard Electrum protocol header "chunk"
-  requests are almost that large.
+  bytes.  Defaults to 1,000,000 (except for AuxPoW coins, which default
+  to 10,000,000).  Values smaller than 350,000 are taken as 350,000
+  because standard Electrum protocol header "chunk" requests are almost
+  that large.
 
   The Electrum protocol has a flaw in that address histories must be
   served all at once or not at all, an obvious avenue for abuse.
-  **MAX_SEND** is a stop-gap until the protocol is improved to admit
-  incremental history requests.  Each history entry is approximately
-  100 bytes so the default is equivalent to a history limit of around
-  10,000 entries, which should be ample for most legitimate users.  If
-  you use a higher default bear in mind one client can request history
-  for multiple addresses.  Also note that the largest raw transaction
-  you will be able to serve to a client is just under half of
-  MAX_SEND, as each raw byte becomes 2 hexadecimal ASCII characters on
-  the wire.  Very few transactions on Bitcoin mainnet are over 500KB
-  in size.
+  :envvar:`MAX_SEND` is a stop-gap until the protocol is improved to
+  admit incremental history requests.  Each history entry is
+  approximately 100 bytes so the default is equivalent to a history
+  limit of around 10,000 entries, which should be ample for most
+  legitimate users.  If you use a higher default bear in mind one
+  client can request history for multiple addresses.  Also note that
+  the largest raw transaction you will be able to serve to a client is
+  just under half of :envvar:`MAX_SEND`, as each raw byte becomes 2
+  hexadecimal ASCII characters on the wire.  Very few transactions on
+  Bitcoin mainnet are over 500KB in size.
 
-* **MAX_SUBS**
+.. envvar:: COST_SOFT_LIMIT
+.. envvar:: COST_HARD_LIMIT
+.. envvar:: REQUEST_SLEEP
+.. envvar:: INITIAL_CONCURRENT
 
-  The maximum number of address subscriptions across all sessions.
-  Defaults to 250,000.
+  All values are integers. :envvar:`COST_SOFT_LIMIT` defaults to :const:`1,000`,
+  :envvar:`COST_HARD_LIMIT` to :const:`10,000`, :envvar:`REQUEST_SLEEP` to :const:`2,500`
+  milliseconds, and :envvar:`INITIAL_CONCURRENT` to :const:`10` concurrent requests.
 
-* **MAX_SESSION_SUBS**
+  The server prices each request made to it based upon an estimate of the resources needed
+  to process it.  Factors include whether the request uses bitcoind, how much bandwidth
+  it uses, and how hard it hits the databases.
 
-  The maximum number of address subscriptions permitted to a single
-  session.  Defaults to 50,000.
+  To set a base for the units, a :func:`blockchain.scripthash.subscribe` subscription to
+  an address with a history of 2 or fewer transactions is costed at :const:`1.0` before
+  considering the bandwidth consumed.  :func:`server.ping` is costed at :const:`0.1`.
 
-* **BANDWIDTH_LIMIT**
+  As the total cost of a session goes over the soft limit, its requests start to be
+  throttled in two ways.  First, the number of requests for that session that the server
+  will process concurrently is reduced.  Second, each request starts to sleep a little
+  before being handled.
 
-  Per-session periodic bandwidth usage limit in bytes.  This is a soft,
-  not hard, limit.  Currently the period is hard-coded to be one hour.
-  The default limit value is 2 million bytes.
+  Before throttling starts, the server will process up to :envvar:`INITIAL_CONCURRENT`
+  requests concurrently without sleeping.  As the session cost ranges from
+  :envvar:`COST_SOFT_LIMIT` to :envvar:`COST_HARD_LIMIT`, concurrency drops linearly to
+  zero and each request's sleep time increases linearly up to :envvar:`REQUEST_SLEEP`
+  milliseconds.  Once the hard limit is reached, the session is disconnected.
 
-  Bandwidth usage over each period is totalled, and when this limit is
-  exceeded each subsequent request is stalled by sleeping before
-  handling it, effectively giving higher processing priority to other
-  sessions.
+  In order that non-abusive sessions can continue to be served, a session's cost gradually
+  decays over time.  Subscriptions have an ongoing servicing cost, so the decay is slower
+  as the number of subscriptions increases.
 
-  The more bandwidth usage exceeds this soft limit the longer the next
-  request will sleep.  Sleep times are a round number of seconds with
-  a minimum of 1.  Each time the delay changes the event is logged.
+  If a session disconnects, ElectrumX continues to associate its cost with its IP address,
+  so if it immediately reconnects it will re-acquire its previous cost allocation.
 
-  Bandwidth usage is gradually reduced over time by "refunding" a
-  proportional part of the limit every now and then.
+  A server operator should experiment with different values according to server loads.  It
+  is not necessarily true that e.g. having a low soft limit, decreasing concurrency and
+  increasing sleep will help handling heavy loads, as it will also increase the backlog of
+  requests the server has to manage in memory.  It will also give a much worse experience
+  for genuine connections.
 
-* **SESSION_TIMEOUT**
+.. envvar:: BANDWIDTH_UNIT_COST
 
-  An integer number of seconds defaulting to 600.  Sessions with no
-  activity for longer than this are disconnected.  Properly
-  functioning Electrum clients by default will send pings roughly
-  every 60 seconds.
+  The number of bytes, sent and received, by a session that is deemed to cost :const:`1.0`.
+
+  The default value :const:`5,000` bytes, meaning the bandwidth cost assigned to a response
+  of 100KB is 20.  If your bandwidth is cheap you should probably raise this.
+
+.. envvar:: REQUEST_TIMEOUT
+
+  An integer number of seconds defaulting to :const:`30`.  If a request takes longer than
+  this to respond to, either because of request limiting or because the request is
+  expensive, the server rejects it and returns a timeout error to the client indicating
+  that the server is busy.
+
+  This can help prevent large backlogs of unprocessed requests building up under heavy load.
+
+.. envvar:: SESSION_TIMEOUT
+
+  An integer number of seconds defaulting to :const:`600`.  Sessions that have not sent a
+  request for longer than this are disconnected.  Properly functioning clients should send
+  a :func:`server.ping` request once roughly 450 seconds have passed since the previous
+  request, in order to avoid disconnection.
 
 
 Peer Discovery
---------------
+==============
 
-In response to the `server.peers.subscribe` RPC call, ElectrumX will
-only return peer servers that it has recently connected to and
+In response to the :func:`server.peers.subscribe` RPC call, ElectrumX
+will only return peer servers that it has recently connected to and
 verified basic functionality.
 
 If you are not running a Tor proxy ElectrumX will be unable to connect
@@ -278,19 +398,20 @@ ElectrumX will perform peer-discovery by default and announce itself
 to other peers.  If your server is private you may wish to disable
 some of this.
 
-* **PEER_DISCOVERY**
+.. envvar:: PEER_DISCOVERY
 
-  This environment variable is case-insensitive and defaults to `on`.
+  This environment variable is case-insensitive and defaults to
+  ``on``.
 
-  If `on`, ElectrumX will occasionally connect to and verify its
+  If ``on``, ElectrumX will occasionally connect to and verify its
   network of peer servers.
 
-  If `off`, peer discovery is disabled and a hard-coded default list
-  of servers will be read in and served.  If set to `self` then peer
+  If ``off``, peer discovery is disabled and a hard-coded default list
+  of servers will be read in and served.  If set to ``self`` then peer
   discovery is disabled and the server will only return itself in the
   peers list.
 
-* **PEER_ANNOUNCE**
+.. envvar:: PEER_ANNOUNCE
 
   Set this environment variable to empty to disable announcing itself.
   If not defined, or non-empty, ElectrumX will announce itself to
@@ -301,72 +422,35 @@ some of this.
   peer discovery if it notices it is not present in the peer's
   returned list.
 
-* **FORCE_PROXY**
+.. envvar:: FORCE_PROXY
 
   By default peer discovery happens over the clear internet.  Set this
   to non-empty to force peer discovery to be done via the proxy.  This
   might be useful if you are running a Tor service exclusively and
   wish to keep your IP address private.
 
-* **TOR_PROXY_HOST**
+.. envvar:: TOR_PROXY_HOST
 
-  The host where your Tor proxy is running.  Defaults to *localhost*.
+  The host where your Tor proxy is running.  Defaults to
+  ``localhost``.
 
   If you are not running a Tor proxy just leave this environment
   variable undefined.
 
-* **TOR_PROXY_PORT**
+.. envvar:: TOR_PROXY_PORT
 
   The port on which the Tor proxy is running.  If not set, ElectrumX
   will autodetect any proxy running on the usual ports 9050 (Tor),
   9150 (Tor browser bundle) and 1080 (socks).
 
+.. envvar:: BLACKLIST_URL
 
-Server Advertising
-------------------
-
-These environment variables affect how your server is advertised
-by peer discovery (if enabled).
-
-* **REPORT_HOST**
-
-  The clearnet host to advertise.  If not set, no clearnet host is
-  advertised.
-
-* **REPORT_TCP_PORT**
-
-  The clearnet TCP port to advertise if **REPORT_HOST** is set.
-  Defaults to **TCP_PORT**.  '0' disables publishing a TCP port.
-
-* **REPORT_SSL_PORT**
-
-  The clearnet SSL port to advertise if **REPORT_HOST** is set.
-  Defaults to **SSL_PORT**.  '0' disables publishing an SSL port.
-
-* **REPORT_HOST_TOR**
-
-  If you wish run a Tor service, this is the Tor host name to
-  advertise and must end with `.onion`.
-
-* **REPORT_TCP_PORT_TOR**
-
-  The Tor TCP port to advertise.  The default is the clearnet
-  **REPORT_TCP_PORT**, unless disabled or it is '0', otherwise
-  **TCP_PORT**.  '0' disables publishing a Tor TCP port.
-
-* **REPORT_SSL_PORT_TOR**
-
-  The Tor SSL port to advertise.  The default is the clearnet
-  **REPORT_SSL_PORT**, unless disabled or it is '0', otherwise
-  **SSL_PORT**.  '0' disables publishing a Tor SSL port.
-
-  **NOTE**: Certificate-Authority signed certificates don't work over
-  Tor, so you should set **REPORT_SSL_PORT_TOR** to 0 if yours is not
-  self-signed.
+  URL to retrieve a list of blacklisted peers.  If not set, a coin-
+  specific default is used.
 
 
 Cache
------
+=====
 
 If synchronizing from the Genesis block your performance might change
 by tweaking the cache size.  Cache size is only checked roughly every
@@ -376,7 +460,9 @@ because of Python overhead and also because leveldb consumes a lot of
 memory when flushing.  So I recommend you do not set this over 60% of
 your available physical RAM:
 
-* **CACHE_MB**
+.. _CACHE:
+
+.. envvar:: CACHE_MB
 
   The amount of cache, in MB, to use.  The default is 1,200.
 
@@ -389,9 +475,7 @@ your available physical RAM:
   fact performance begins to fall, probably because LevelDB already
   caches, and also because of Python GC.
 
-  I do not recommend raising this above 2000.  If upgrading from prior
-  versions, a value of 90% of the sum of the old UTXO_MB and HIST_MB
-  variables is roughly equivalent.
+  I do not recommend raising this above 2000.
 
-.. _lib/coins.py: https://github.com/kyuupichan/electrumx/blob/master/lib/coins.py
+.. _lib/coins.py: https://github.com/kyuupichan/electrumx/blob/master/electrumx/lib/coins.py
 .. _uvloop: https://pypi.python.org/pypi/uvloop
