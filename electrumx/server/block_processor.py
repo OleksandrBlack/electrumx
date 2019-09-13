@@ -9,9 +9,11 @@
 '''Block prefetcher and chain processor.'''
 
 
+import array
 import asyncio
 from struct import pack, unpack
 import time
+from functools import partial
 
 from aiorpcx import TaskGroup, run_in_thread
 
@@ -55,11 +57,6 @@ class Prefetcher(object):
                     await asyncio.sleep(self.polling_delay)
             except DaemonError as e:
                 self.logger.info(f'ignoring daemon error: {e}')
-            except asyncio.CancelledError as e:
-                self.logger.info(f'cancelled; prefetcher stopping {e}')
-                raise
-            except Exception:
-                self.logger.exception(f'ignoring unexpected exception')
 
     def get_prefetched_blocks(self):
         '''Called by block processor when it is processing queued blocks.'''
@@ -168,10 +165,6 @@ class BlockProcessor(object):
         self.next_cache_check = 0
         self.touched = set()
         self.reorg_count = 0
-        self.height = -1
-        self.tip = None
-        self.tx_count = 0
-        self._caught_up_event = None
 
         # Caches of unflushed items.
         self.headers = []
@@ -216,9 +209,9 @@ class BlockProcessor(object):
             await self._maybe_flush()
             if not self.db.first_sync:
                 s = '' if len(blocks) == 1 else 's'
-                blocks_size = sum(len(block) for block in raw_blocks) / 1_000_000
-                self.logger.info(f'processed {len(blocks):,d} block{s} size {blocks_size:.2f} MB '
-                                 f'in {time.time() - start:.1f}s')
+                self.logger.info('processed {:,d} block{} in {:.1f}s'
+                                 .format(len(blocks), s,
+                                         time.time() - start))
             if self._caught_up_event.is_set():
                 await self.notifications.on_block(self.touched, self.height)
             self.touched = set()
@@ -260,7 +253,7 @@ class BlockProcessor(object):
             self.touched.discard(None)
             self.db.flush_backup(self.flush_data(), self.touched)
 
-        _start, last, hashes = await self.reorg_hashes(count)
+        start, last, hashes = await self.reorg_hashes(count)
         # Reverse and convert to hex strings.
         hashes = [hash_to_hex_str(hash) for hash in reversed(hashes)]
         for hex_hashes in chunks(hashes, 50):
@@ -690,7 +683,7 @@ class DecredBlockProcessor(BlockProcessor):
         return start, count
 
 
-class NameIndexBlockProcessor(BlockProcessor):
+class NamecoinBlockProcessor(BlockProcessor):
 
     def advance_txs(self, txs):
         result = super().advance_txs(txs)
@@ -701,12 +694,12 @@ class NameIndexBlockProcessor(BlockProcessor):
         hashXs_by_tx = []
         append_hashXs = hashXs_by_tx.append
 
-        for tx, _tx_hash in txs:
+        for tx, tx_hash in txs:
             hashXs = []
             append_hashX = hashXs.append
 
             # Add the new UTXOs and associate them with the name script
-            for txout in tx.outputs:
+            for idx, txout in enumerate(tx.outputs):
                 # Get the hashX of the name script.  Ignore non-name scripts.
                 hashX = script_name_hashX(txout.pk_script)
                 if hashX:
