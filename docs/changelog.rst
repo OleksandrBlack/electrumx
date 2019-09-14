@@ -1,100 +1,182 @@
-ChangeLog
-=========
+===========
+ ChangeLog
+===========
 
-IMPORTANT: version 1.2 changes script hash indexing in the database,
-so you will need to rebuild your databases from scratch.  Running this
-version will refuse to open the DB and not corrupt it, so you can
-revert to 1.1.x if you wish.  The initial synchronisation process
-should be around 10-15% faster than 1.1, owing to this change and
-Justin Arthur's optimisations from 1.1.1.
+.. note:: It is strongly recommended you upgrade to Python 3.7, which
+   fixes bugs in asyncio that caused an ever-growing open file count
+   and memory consumption whilst serving clients.  Those problems
+   should not occur with Python 3.7.
 
-Version 1.3
------------
 
-* Switch to :ref:`version 1.2` of the protocol.
-  :func:`mempool.get_fee_histogram` implementation contributed by ecdsa,
-  verbose mode of :func:`blockchain.transaction.get` by gdassori.
-* :func:`blockchain.scripthash.listunspent` now takes into account mempool
-  spends and receipts.
-* Improved client notification handling.
-* Wait for mempool to fully sync before serving.
-* Documentation moved to `readthedocs.io
-  <https://electrumx.readthedocs.io/>`_.  Rewritten and improved
-  protocol documentation.
-* new/updated coins: Chips (cipig), Feathercoin (lclc), Zclassic(heyrhett),
-  Dash (thelazier), NYC (xarakas), Koto (wo01), BitcoinZ (cipig), BitCore
-  (cipig), Fujicoin (fujicoin), Bitcoin Atom (erasmospunk), Deanrius (carsenk),
-  SNG (blackjok3rtt).
-* Minor fixes and improvements: duckartes, blin00, bauerj,
-  erasmospunk, SomberNight, romanz.
+Version 1.9.5 (08 Feb 2019)
+===========================
 
-Version 1.2.1
--------------
+* server blacklist logic (ecdsa)
+* require aiorpcX 0.10.4
+* remove dead wallet code
+* fix `#727`_ - not listing same peer twice
 
-- remove IRC support.  Most coins had empty IRC channels.  Those that
-  don't have peers populated.
-- use estimatesmartfee RPC call if available (SomberNight)
-- new/updated coins: Emercoin (Sergii Vakula), Bitcoin Gold (erasmospunk),
-  Monacoin testnet (Wakiyama P), sibcoin (53r63rn4r), Komodo and Monaize
-  (cipig), Hush (Duke Leto)
-- doc updates (fr3aker)
-- issues fixed: `#302`_
+Version 1.9.4 (07 Feb 2019)
+===========================
 
-Version 1.2
------------
+* require aiorpcX 0.10.3
+* fix `#713`_
 
-- separate P2PKH from P2PK entries in the history and UTXO databases.
-  These were previously amalgamated by address as that is what
-  electrum-server used to do.  However Electrum didn't handle P2PK
-  spends correctly and now the protocol admits subscriptions by script
-  hash there is no need to have these merged any more.
+Version 1.9.3 (05 Feb 2019)
+===========================
 
-For Bitcoin (BitcoinSegwit/mainnet) you can download a leveldb database
-synced up to block 490153 using this bittorrent magnet
-`link (~24GB) <magnet:?xt=urn:btih:caa804f48a319b061be3884ac011656c27121a6f&dn=electrumx_1.2_btc_leveldb_490153>`_.
+* ignore potential sybil peers
+* coin additions / updates: BitcoinCashABC (cculianu), Monacoin (wakiyamap)
 
-Version 1.1.2
--------------
+Version 1.9.2 (03 Feb 2019)
+===========================
 
-- PEER_DISCOVERY environment variable is now tri-state (fixes
-  `#287`_).  Please check your setting as its meaning has changed
-  slightly.
-- fix listunspent protocol methods to remove in-mempool spends (fixes
-  `#277`_).
-- improved environment variable handling
-- EMC2 update (cipig), Monacoin update (cryptocoin-junkey),
-  Canada Ecoin (koad)
-- typo fixes, Bitcoin testnet peers updates (SomberNight)
+* restore protocol version 1.2 and send a warning for old BTC Electrum clients that they
+  need to upgrade.  This is an attempt to protect users of old versions of Electrum from
+  the ongoing phishing attacks
+* increase default MAX_SEND for AuxPow Chains.  Truncate AuxPow for block heights covered
+  by a checkpoint.  (jeremyrand)
+* coin additions / updates: NMC (jeremyrand), Dash (zebra-lucky), PeerCoin (peerchemist),
+  BCH testnet (Mark Lundeberg), Unitus (ChekaZ)
+* tighter RPC param checking (ghost43)
 
-Version 1.1.1
--------------
+Version 1.9.1 (11 Jan 2019)
+===========================
 
-- various refactorings, improvement of env var handling
-- update docs to match
-- various optimizations mainly affecting initial sync (Justin Arthur)
-- Dash fixes (cipig)
-- Add ALLOW_ROOT option (Luke Childs)
-- Add BitZeny support, update Monacoin (cryptocoin-junkey)
+* fix `#684`_
 
-Version 1.1
------------
+Version 1.9.0 (10 Jan 2019)
+===========================
 
-See the changelogs below for recent changes.  The most important is
-that for mainnet bitcoin **NET** must now be *mainnet* and you must
-choose a **COIN** from *BitcoinCash* and *BitcoinSegwit*.  Similarly
-for testnets.  These coins will likely diverge further in future so
-it's best they become separate coins now.
+* minimum protocol version is now 1.4
+* coin additions / updates: BitcoinSV, SmartCash (rc125), NIX (phamels), Minexcoin (joesixpack),
+  BitcoinABC (mblunderburg), Dash (zebra-lucky), BitcoinABCRegtest (ezegom), AXE (slowdive),
+  NOR (flo071), BitcoinPlus (bushsolo), Myriadcoin (cryptapus), Trezarcoin (ChekaZ),
+  Bitcoin Diamond (John Shine),
+* close `#554`_, `#653`_, `#655`_
+* other minor tweaks (Michael Schmoock, Michael Taborsky)
 
-- no longer persist peers, rediscover on restart
-- onion peers only reported if can connect; hard-coded exception removed
-- small fix for blockchain.transaction.broadcast
+
+Version 1.8.12 (10 Nov 2018)
+============================
+
+* bug fix
+
+Version 1.8.11 (07 Nov 2018)
+============================
+
+* require aiorpcX 0.10.1
+
+Version 1.8.10 (05 Nov 2018)
+============================
+
+* require aiorpcX 0.10.0
+* fix `#632`_
+* coin additions / updates: ZelCash (TheTrunk)
+
+Version 1.8.9 (02 Nov 2018)
+===========================
+
+* fix `#630`_
+
+Version 1.8.8 (01 Nov 2018)
+===========================
+
+* require aiorpcX 0.9.0
+* coin additions / updates: decred (dajohi, bolapara), zcash (erasmospunk),
+  namecoin (JeremyRand),CivX (turcol), NewYorkCoin (erasmospunk)
+* fix `#603`_, `#608`_
+* other minor fixes and changes: FMCorz
+
+Version 1.8.7 (13 Sep 2018)
+===========================
+
+* require aiorpcX 0.8.1
+* fix reorg bug loading blocks from disk (erasmospunk)
+
+Version 1.8.6 (12 Sep 2018)
+===========================
+
+* require aiorpcX 0.8.0
+* suppress socket.send() errors
+* new coin TokenPay (samfiragabriel)
+* minor fix: wakiyamap
+
+Version 1.8.5 (18 Aug 2018)
+===========================
+
+* require aiorpcX 0.7.3 which contains a couple of bugfixes
+* fix `#552`_, `#577`_
+* fixed a session limiting bug reported by ghost43
+* coin additions / updates: PIVX and Decred Testnets, BitcoinGreen (cunhasb)
+  Monacoin (wakayamap)
+* proper generation input handling for various altcoins (erasmospunk) fixing
+  `#570`_
+
+Version 1.8.4 (14 Aug 2018)
+===========================
+
+* improved notification handling and efficiency
+* improved daemon handling with minor fixes; full tests for Daemon class
+* remove chain_state class
+* various internal cleanups and improvements (erasmospunk)
+* add PIVX support (erasmospunk) - mempool handling WIP
+* fix protocol 1.3 handling of blockchain.block.header RPC (ghost43)
+
+Version 1.8.3 (11 Aug 2018)
+===========================
+
+* separate the DB and the BlockProcessor objects
+* comprehensive mempool tests
+* fix `#521`_, `#565`_, `#567`_
+
+Version 1.8.2 (09 Aug 2018)
+===========================
+
+* require aiorpcX 0.7.1 which along with an ElectrumX change restores clean
+  shutdown and flush functionality, particularly during initial sync
+* fix `#564`_
+
+Version 1.8.1 (08 Aug 2018)
+===========================
+
+* require aiorpcX 0.7.0 which fixes a bug causing silent shutdown of ElectrumX
+* fix `#557`_, `#559`_
+* tweaks related to log spew (I think mostly occurring with old versions
+  of Python)
+
+Version 1.8  (06 Aug 2018)
+==========================
+
+* require aiorpcX 0.6.2
+* fix query.py; move to contrib.  Add :ref:`query <query>` function to RPC
+* rewrite :command:`electrumx_rpc` so that proper command-line help is provided
+* per-coin tx hash functions (erasmospunk)
+* coin additions / updates: Groestlcoin (Kefkius, erasmospunk),
+  Decred (erasmonpsunk)
+* other minor (smmalis37)
+
 
 **Neil Booth**  kyuupichan@gmail.com  https://github.com/kyuupichan
 
 1BWwXJH3q6PRsizBkSGm2Uw4Sz1urZ5sCj
 
-LKaFk4KkVpw9pYoUpbckQSKKgCVC4oj78b
-
-.. _#277: https://github.com/kyuupichan/electrumx/issues/277
-.. _#287: https://github.com/kyuupichan/electrumx/issues/287
-.. _#302: https://github.com/kyuupichan/electrumx/issues/302
+.. _#521: https://github.com/kyuupichan/electrumx/issues/521
+.. _#552: https://github.com/kyuupichan/electrumx/issues/552
+.. _#554: https://github.com/kyuupichan/electrumx/issues/554
+.. _#557: https://github.com/kyuupichan/electrumx/issues/557
+.. _#559: https://github.com/kyuupichan/electrumx/issues/559
+.. _#564: https://github.com/kyuupichan/electrumx/issues/564
+.. _#565: https://github.com/kyuupichan/electrumx/issues/565
+.. _#567: https://github.com/kyuupichan/electrumx/issues/567
+.. _#570: https://github.com/kyuupichan/electrumx/issues/570
+.. _#577: https://github.com/kyuupichan/electrumx/issues/577
+.. _#603: https://github.com/kyuupichan/electrumx/issues/603
+.. _#608: https://github.com/kyuupichan/electrumx/issues/608
+.. _#630: https://github.com/kyuupichan/electrumx/issues/630
+.. _#632: https://github.com/kyuupichan/electrumx/issues/630
+.. _#653: https://github.com/kyuupichan/electrumx/issues/653
+.. _#655: https://github.com/kyuupichan/electrumx/issues/655
+.. _#684: https://github.com/kyuupichan/electrumx/issues/684
+.. _#713: https://github.com/kyuupichan/electrumx/issues/713
+.. _#727: https://github.com/kyuupichan/electrumx/issues/727
