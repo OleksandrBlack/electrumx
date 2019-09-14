@@ -13,13 +13,18 @@ For a future network with bigger blocks.
   :Language: Python (>= 3.6)
   :Author: Neil Booth
 
+Getting Started
+===============
+
+See `docs/HOWTO.rst`_.
+There is also an `installer`_ available that simplifies the installation on various Linux-based distributions.
+There is also a `Dockerfile`_ available .
+
+.. _installer:  https://github.com/OleksandrBlack/electrumx-installer
+
+.. _Dockerfile: https://github.com/OleksandrBlack/docker-electrumx
+
 Documentation
 =============
 
 See `readthedocs <https://electrumx.readthedocs.io/>`_.
-
-
-**Neil Booth**  kyuupichan@gmail.com  https://github.com/kyuupichan
-
-
-1BWwXJH3q6PRsizBkSGm2Uw4Sz1urZ5sCj

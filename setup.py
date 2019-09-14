@@ -1,37 +1,30 @@
 import setuptools
-version = '1.9.5'
+from server.version import VERSION
+
 
 setuptools.setup(
-    name='electrumX',
-    version=version,
-    scripts=['electrumx_server', 'electrumx_rpc', 'electrumx_compact_history'],
+    name='electrumx',
+    version=VERSION.split()[-1],
+    scripts=['electrumx_server.py', 'electrumx_rpc.py'],
     python_requires='>=3.6',
     # via environment variables, in which case I've tested with 15.0.4
     # "x11_hash" package (1.4) is required to sync DASH network.
-    # "x13_hash" package is required to sync BitcoinPlus network.
     # "tribus_hash" package is required to sync Denarius network.
     # "blake256" package is required to sync Decred network.
-    # "xevan_hash" package is required to sync Xuez network.
-    # "groestlcoin_hash" package is required to sync Groestlcoin network.
-    # "pycryptodomex" package is required to sync SmartCash network.
-    install_requires=['aiorpcX>=0.10.4,<0.11', 'attrs',
-                      'plyvel', 'pylru', 'aiohttp >= 2'],
-    packages=setuptools.find_packages(include=('electrumx*',)),
+    install_requires=['aiorpcX >= 0.4.4', 'plyvel', 'pylru', 'aiohttp >= 1'],
+    packages=setuptools.find_packages(exclude=['tests']),
     description='ElectrumX Server',
     author='Neil Booth',
-    author_email='kyuupichan@gmail.com',
+    author_email='OleksandrBlack@gmail.com',
     license='MIT Licence',
-    url='https://github.com/kyuupichan/electrumx',
-    long_description='Server implementation for the Electrum protocol',
-    download_url=('https://github.com/kyuupichan/electrumX/archive/'
-                  f'{version}.tar.gz'),
+    url='https://github.com/OleksandrBlack/electrumx/',
+    long_description='Server implementation for the Electrum wallet',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Framework :: AsyncIO',
+        'Topic :: Internet',
         'License :: OSI Approved :: MIT License',
         'Operating System :: Unix',
         "Programming Language :: Python :: 3.6",
-        "Topic :: Database",
-        'Topic :: Internet',
     ],
 )

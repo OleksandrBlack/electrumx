@@ -18,10 +18,11 @@ Package          Notes
 Python3          ElectrumX uses asyncio.  Python version >= 3.6 is
                  **required**.
 `aiohttp`_       Python library for asynchronous HTTP.  Version >=
-                 2.0 required.
-`pylru`_         Python LRU cache package.
-DB Engine        A database engine package is required; two are
-                 supported (see `Database Engine`_ below).
+                 1.0 required; I am using 3.0.1.
+`pylru`_         Python LRU cache package.  I'm using 1.0.9.
+DB Engine        I use `plyvel`_ 0.9, a Python interface to LevelDB.
+                 A database engine package is required but others
+                 are supported (see **Database Engine** below).
 ================ ========================
 
 Some coins need an additional package, typically for their block hash
@@ -244,7 +245,7 @@ has its caches and disk I/O tuned to that task only.
 The :envvar:`CACHE_MB` environment variable controls the total cache
 size ElectrumX uses; see :ref:`here <CACHE>` for caveats.
 
-Here is my experience with the codebase of early 2017 (the current
+Here is my experience with the codebase of year ago (the current
 codebase is faster), to given heights and rough wall-time.  The period
 from heights 363,000 to 378,000 is the most sluggish::
 
@@ -280,7 +281,7 @@ Terminating ElectrumX
 The preferred way to terminate the server process is to send it the
 ``stop`` RPC command::
 
-  electrumx_rpc stop
+  electrumx_rpy.py stop
 
 or alternatively on Unix the ``INT`` or ``TERM`` signals.  For a
 daemontools supervised process this can be done by bringing it down
@@ -371,8 +372,8 @@ The ETA shown is just a rough guide and in the short term can be quite
 volatile.  It tends to be a little optimistic at first; once you get
 to height 280,000 is should be fairly accurate.
 
-Creating a self-signed SSL certificate
-======================================
+Creating an self-signed SSL certificate
+=======================================
 
 These instructions are based on those of the ``electrum-server``
 documentation.
